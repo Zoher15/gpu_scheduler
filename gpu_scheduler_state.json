@@ -1,0 +1,15 @@
+{
+    "gpu_status": [
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+    ],
+    "paused_gpus": [
+        0
+    ]
+}

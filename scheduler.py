@@ -199,6 +199,7 @@ class GPUJobScheduler:
         self.save_state()
         logger.info("Scheduler stopped.")
 
+    # Replace the existing worker function with this one:
     def worker(self):
         """Worker thread logic: Get job, find GPU, run job."""
         thread_name = threading.current_thread().name # Get thread name for logging
@@ -206,6 +207,7 @@ class GPUJobScheduler:
 
         while not self.stop_event.is_set():
             job_tuple = None
+            job_id = None # Initialize job_id to None
             try:
                 # Get job: (priority, job_id, script_path, conda_env, args, allowed_gpus)
                 job_tuple = self.job_queue.get(block=True, timeout=1.0)
@@ -218,98 +220,98 @@ class GPUJobScheduler:
 
                 logger.debug(f"Retrieved job ID {job_id}: {script_path} (Priority: {priority})")
 
+                # --- Job retrieved, now find a suitable GPU ---
+                assigned = False
+                attempts = 0
+                max_attempts = 5
+
+                while not assigned and not self.stop_event.is_set() and attempts < max_attempts:
+                    gpu_id_to_run = -1
+                    with self.lock:
+                        gpu_indices = list(range(self.num_gpus))
+                        # random.shuffle(gpu_indices) # Optional: Randomize check order
+                        for gpu_id in gpu_indices:
+                            _, _, _, _, _, allowed_gpus = job_tuple # Unpack allowed_gpus
+                            if not self.gpu_status[gpu_id] and \
+                            gpu_id not in self.paused_gpus and \
+                            (allowed_gpus is None or gpu_id in allowed_gpus):
+                                try:
+                                    gpus_util = GPUtil.getGPUs()
+                                    if gpu_id < len(gpus_util):
+                                        gpu = gpus_util[gpu_id]
+                                        mem_util = gpu.memoryUtil
+                                        load_util = gpu.load
+                                        logger.debug(f"Checking GPU {gpu_id} for Job ID {job_id}: Status=AVAILABLE, Paused=No, Allowed=Yes. Util Mem={mem_util:.2f}, Load={load_util:.2f}")
+                                        if mem_util < self.gpu_memory_threshold and load_util < self.gpu_load_threshold:
+                                            logger.info(f"Found suitable GPU {gpu_id} for job ID {job_id}.")
+                                            self.gpu_status[gpu_id] = True # Mark busy *within lock*
+                                            gpu_id_to_run = gpu_id
+                                            break # Exit GPU check loop
+                                    else:
+                                        logger.warning(f"GPUtil did not report on GPU {gpu_id}. Skipping assignment for job ID {job_id}.")
+                                except Exception as e:
+                                    logger.error(f"Error checking GPU {gpu_id} utilization for job ID {job_id}: {e}. Skipping.")
+                                    continue
+
+                    # --- After checking all GPUs ---
+                    if gpu_id_to_run != -1:
+                        # --- Assign Job ---
+                        logger.info(f"Assigning job ID {job_id} ({script_path}) to GPU {gpu_id_to_run}")
+                        self.save_state() # Save state *after* finding GPU and releasing lock
+
+                        job_runner_thread = threading.Thread(
+                            target=self._run_job,
+                            args=(job_tuple, gpu_id_to_run),
+                            name=f"JobRunner-GPU{gpu_id_to_run}-{Path(script_path).stem}-{job_id[:4]}",
+                            daemon=True
+                        )
+                        job_runner_thread.start()
+                        assigned = True
+                        # *** DO NOT call task_done() here ***
+
+                    else:
+                        # --- No suitable GPU found ---
+                        attempts += 1
+                        logger.debug(f"Found no suitable GPU for job ID {job_id} (Attempt {attempts}/{max_attempts}). Will re-queue and wait.")
+                        try:
+                            self.job_queue.put(job_tuple) # Put the original tuple back
+                            # *** DO NOT call task_done() here ***
+                        except Exception as e:
+                            logger.error(f"Failed to re-queue job ID {job_id}: {e}")
+                            # If re-queue fails, the job is lost from the queue perspective for this worker cycle
+                            # We still need to call task_done() below for the original get()
+
+                        # Wait before this worker tries getting *any* job again.
+                        wait_time = min(5 * attempts, 30)
+                        time.sleep(wait_time)
+
+
+                # --- End of assignment attempt loop ---
+                if not assigned:
+                    # This path is reached if max_attempts was hit OR if stop_event was set during attempts
+                    logger.warning(f"Finished assignment attempts for job ID {job_id} ({script_path}). Assigned: {assigned}. Stop event: {self.stop_event.is_set()}")
+                    # Job should have been re-queued on the last failed attempt inside the loop if stop_event wasn't set.
+
             except queue.Empty:
-                continue # No job, loop back
-            except Exception as e:
-                logger.error(f"Error getting job from queue: {e}")
-                time.sleep(1)
+                # No job retrieved during timeout, just continue
                 continue
-
-            # --- Job retrieved, now find a suitable GPU ---
-            assigned = False
-            attempts = 0
-            max_attempts = 5
-
-            while not assigned and not self.stop_event.is_set() and attempts < max_attempts:
-                gpu_id_to_run = -1
-                with self.lock:
-                    gpu_indices = list(range(self.num_gpus))
-                    # random.shuffle(gpu_indices) # Optional: Randomize check order
-                    for gpu_id in gpu_indices:
-                        _, _, _, _, _, allowed_gpus = job_tuple # Unpack allowed_gpus
-                        if not self.gpu_status[gpu_id] and \
-                           gpu_id not in self.paused_gpus and \
-                           (allowed_gpus is None or gpu_id in allowed_gpus):
-                            try:
-                                gpus_util = GPUtil.getGPUs()
-                                if gpu_id < len(gpus_util):
-                                    gpu = gpus_util[gpu_id]
-                                    mem_util = gpu.memoryUtil
-                                    load_util = gpu.load
-                                    logger.debug(f"Checking GPU {gpu_id} for Job ID {job_id}: Status=AVAILABLE, Paused=No, Allowed=Yes. Util Mem={mem_util:.2f}, Load={load_util:.2f}")
-                                    if mem_util < self.gpu_memory_threshold and load_util < self.gpu_load_threshold:
-                                        logger.info(f"Found suitable GPU {gpu_id} for job ID {job_id}.")
-                                        self.gpu_status[gpu_id] = True # Mark busy *within lock*
-                                        gpu_id_to_run = gpu_id
-                                        break # Exit GPU check loop
-                                    # else: logger.debug(...) # Log if util too high
-                                else:
-                                    logger.warning(f"GPUtil did not report on GPU {gpu_id}. Skipping assignment for job ID {job_id}.")
-                            except Exception as e:
-                                logger.error(f"Error checking GPU {gpu_id} utilization for job ID {job_id}: {e}. Skipping.")
-                                continue
-
-                # --- After checking all GPUs ---
-                if gpu_id_to_run != -1:
-                    # --- Assign Job ---
-                    logger.info(f"Assigning job ID {job_id} ({script_path}) to GPU {gpu_id_to_run}")
-                    self.save_state() # Save state *after* finding GPU and releasing lock
-
-                    job_runner_thread = threading.Thread(
-                        target=self._run_job,
-                        args=(job_tuple, gpu_id_to_run),
-                        name=f"JobRunner-GPU{gpu_id_to_run}-{Path(script_path).stem}-{job_id[:4]}", # Include partial job_id in thread name
-                        daemon=True
-                    )
-                    job_runner_thread.start()
-                    assigned = True
-                    self.job_queue.task_done() # Signal job processing started
-
-                else:
-                    # --- No suitable GPU found ---
-                    attempts += 1
-                    logger.debug(f"Found no suitable GPU for job ID {job_id} (Attempt {attempts}/{max_attempts}). Re-queueing.")
+            except Exception as e:
+                # Catch errors during the main processing of a retrieved job
+                logger.error(f"Error processing job ID {job_id or 'N/A'}: {e}", exc_info=True)
+                # We still need to call task_done for the job we potentially retrieved
+            finally:
+                # *** FIX for ValueError: Call task_done() exactly once here ***
+                # Ensure task_done is called only if a job was actually retrieved
+                # (i.e., job_id is not None, meaning it wasn't the sentinel and get() didn't raise Empty)
+                if job_id is not None:
                     try:
-                        self.job_queue.put(job_tuple) # Put the original tuple back
-                        self.job_queue.task_done() # Mark original task done as we re-queued it
+                        self.job_queue.task_done()
+                        logger.debug(f"task_done() called for job ID {job_id}")
+                    except ValueError:
+                        # This error should ideally not happen now, but log if it does
+                        logger.error(f"ValueError: task_done() called too many times for job ID {job_id}!")
                     except Exception as e:
-                         logger.error(f"Failed to re-queue job ID {job_id}: {e}")
-                    wait_time = min(5 * attempts, 30)
-                    time.sleep(wait_time) # Wait before this worker tries getting *any* job again
-
-            # --- If job couldn't be assigned after max attempts ---
-            if not assigned and attempts >= max_attempts:
-                 logger.warning(f"Failed to assign job ID {job_id} ({script_path}) after {max_attempts} attempts. Leaving it in the queue.")
-                 # Job remains in the queue. Need task_done() here?
-                 # Yes, the original `get` needs a corresponding `task_done`.
-                 # It was called after successful re-queue, but needs to be called here too if re-queue fails or loop finishes.
-                 # Let's ensure task_done is always called once per successful get.
-                 # The logic above calls it after starting runner OR after re-queue. What if re-queue fails?
-                 # Add a final check/call.
-                 try:
-                     # Check if task_done was already called (e.g. after re-queue)
-                     # This is tricky without tracking state. Assume it might not have been called if loop exited here.
-                     # Calling task_done potentially twice is problematic.
-                     # Let's restructure slightly: call task_done *after* the inner while loop completes or breaks.
-                     pass # See task_done call below
-                 except ValueError: # If task_done called too many times
-                     pass
-
-            # Ensure task_done() is called exactly once for the job retrieved by get()
-            # This call handles the case where the loop finishes without assigning *or* re-queueing successfully (e.g., re-queue exception)
-            # However, the current logic calls it after assignment OR after re-queue. This might be sufficient.
-            # Let's rely on the existing task_done calls for now. If queue joining hangs, this might need review.
-
+                        logger.error(f"Error calling task_done() for job ID {job_id}: {e}")
 
         logger.info(f"Worker finished.")
 
@@ -357,28 +359,81 @@ class GPUJobScheduler:
         temp_script_path = None
         try:
             # --- Create temp script ---
-            script_content = ["#!/bin/bash", f"# Job ID: {job_id}", f"# Screen session: {session_name}", ...] # Add other details
-            # (Rest of script content generation as before)
-            # ... include conda activation, python command execution ...
+            # *** FIX: Removed the erroneous Ellipsis (...) object from this list initialization ***
+            script_content = [
+                "#!/bin/bash",
+                "set -e", # Exit on error
+                f"# Job ID: {job_id}",
+                f"# Screen session: {session_name}",
+                f"# Script: {script_path}",
+                f"# GPU: {gpu_id}",
+                f"# Started: {start_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                "echo \"-------------------------------------------------\"",
+                f"echo \"Running {script_path} on GPU {gpu_id} in screen session {session_name}\"",
+                f"echo \"Job ID: {job_id}\"",
+                f"echo \"Started at: {start_time}\"",
+                "echo \"To detach: Press Ctrl+A, then D\"",
+                "echo \"-------------------------------------------------\""
+            ]
+
+            # Add conda activation if needed
+            if conda_env:
+                try:
+                    conda_base_path = subprocess.check_output("conda info --base", shell=True, text=True).strip()
+                    if conda_base_path:
+                        conda_sh_path = os.path.join(conda_base_path, "etc/profile.d/conda.sh")
+                        if os.path.exists(conda_sh_path):
+                            script_content.append(f"source \"{conda_sh_path}\"")
+                            script_content.append(f"conda activate \"{conda_env}\"")
+                            script_content.append(f"echo \"Activated conda environment: {conda_env}\"")
+                        else:
+                            script_content.append(f"# Warning: conda.sh not found at {conda_sh_path}")
+                            script_content.append(f"conda activate \"{conda_env}\" || echo 'Failed to activate conda env {conda_env}'")
+
+                    else:
+                        script_content.append("# Warning: Could not determine conda base path.")
+                        script_content.append(f"conda activate \"{conda_env}\" || echo 'Failed to activate conda env {conda_env}'")
+
+                except Exception as conda_e:
+                    script_content.append(f"# Warning: Error finding conda: {conda_e}")
+                    script_content.append(f"conda activate \"{conda_env}\" || echo 'Failed to activate conda env {conda_env}'")
+
+            # Prepare command arguments
             cmd_args_str = ""
             if args:
-                cmd_args_str = " ".join(shlex.quote(str(arg)) for arg in args) if isinstance(args, list) else str(args)
-            script_content.append(f"echo \"Executing: python {shlex.quote(script_path)} {cmd_args_str}\"")
-            script_content.append(f"python {shlex.quote(script_path)} {cmd_args_str}")
-            script_content.append("exit_code=$?")
-            # ... rest of script content ...
+                # Ensure args are strings before joining/quoting
+                try:
+                    str_args = [str(arg) for arg in args]
+                    cmd_args_str = " ".join(shlex.quote(arg) for arg in str_args)
+                except Exception as e_args:
+                    logger.error(f"GPU {gpu_id}: Job ID {job_id}: Error converting screen arguments to strings: {args}. Error: {e_args}")
+                    raise ValueError(f"Invalid screen arguments found for job {job_id}: {args}") from e_args
 
+            # Add the actual command
+            script_content.append(f"echo \"Executing: python {shlex.quote(script_path)} {cmd_args_str}\"")
+            script_content.append(f"python {shlex.quote(script_path)} {cmd_args_str}") # Use quoted path and args string
+            script_content.append("exit_code=$?")
+            script_content.append("echo \"-------------------------------------------------\"")
+            script_content.append("echo \"Job finished with exit code: $exit_code\"")
+            script_content.append("echo \"Screen session will exit shortly...\"")
+            script_content.append("sleep 5") # Give time to see message if attached
+
+            # --- Write script to temp file ---
             temp_script_dir = Path("/tmp")
             temp_script_dir.mkdir(exist_ok=True)
             temp_script_path = temp_script_dir / f"run_{session_name}.sh"
-            with open(temp_script_path, 'w') as f: f.write("\n".join(script_content))
-            os.chmod(temp_script_path, 0o755)
+
+            # Write the content joined by newlines
+            with open(temp_script_path, 'w') as f:
+                f.write("\n".join(script_content)) # This line was failing due to Ellipsis
+
+            os.chmod(temp_script_path, 0o755) # Make executable
             logger.debug(f"GPU {gpu_id}: Temp script for job ID {job_id}: {temp_script_path}")
 
             # --- Start screen session ---
             screen_cmd = ['screen', '-dmS', session_name, str(temp_script_path)] # Use string path
             logger.info(f"GPU {gpu_id}: Starting screen session '{session_name}' for job ID {job_id}")
-            subprocess.run(screen_cmd, env=env, check=True)
+            subprocess.run(screen_cmd, env=env, check=True) # check=True raises error if screen fails
             logger.info(f"GPU {gpu_id}: To view progress: screen -r {session_name}")
 
             # --- Start monitoring thread ---
@@ -390,8 +445,20 @@ class GPUJobScheduler:
             )
             monitoring_thread.start()
 
+        except FileNotFoundError as e:
+            logger.error(f"GPU {gpu_id}: 'screen' command not found or script path invalid? Error: {e}")
+            self._release_gpu(gpu_id, job_id, script_basename, start_time, "screen command/script not found")
+            if temp_script_path and temp_script_path.exists():
+                try: temp_script_path.unlink()
+                except OSError as e_rm: logger.warning(f"Error removing temp script {temp_script_path}: {e_rm}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"GPU {gpu_id}: Failed to start screen session '{session_name}' for job ID {job_id}. Error: {e}")
+            self._release_gpu(gpu_id, job_id, script_basename, start_time, "failed to start screen")
+            if temp_script_path and temp_script_path.exists():
+                try: temp_script_path.unlink()
+                except OSError as e_rm: logger.warning(f"Error removing temp script {temp_script_path}: {e_rm}")
         except Exception as e:
-            # Simplified error handling - release GPU if screen setup fails
+            # Catch other potential errors during setup
             logger.error(f"GPU {gpu_id}: Error setting up screen session for job ID {job_id}: {e}", exc_info=True)
             self._release_gpu(gpu_id, job_id, script_basename, start_time, "screen setup error")
             if temp_script_path and temp_script_path.exists():
@@ -444,7 +511,12 @@ class GPUJobScheduler:
         try:
             log_file = open(log_filename, 'w', buffering=1)
             log_file.write(f"Job ID: {job_id}\n")
-            # (Write other header info: script, gpu, time, conda, args...)
+            log_file.write(f"Script: {script_path}\n")
+            log_file.write(f"GPU ID: {gpu_id}\n")
+            log_file.write(f"Start Time: {start_time}\n")
+            log_file.write(f"Conda Env: {conda_env or 'None'}\n")
+            log_file.write(f"Arguments: {args}\n")
+            log_file.write(f"CUDA_VISIBLE_DEVICES={env.get('CUDA_VISIBLE_DEVICES')}\n")
             log_file.write("-" * 60 + "\n") ; log_file.flush()
 
             command_list = []
@@ -453,25 +525,62 @@ class GPUJobScheduler:
             # --- Build command (using temp script for conda) ---
             if conda_env:
                 shell_script_lines = ["#!/bin/bash", "set -e", f"# Job ID: {job_id}"]
-                # (Add conda activation logic as before) ...
-                python_cmd = ["python", script_path]
-                if args: python_cmd.extend(shlex.split(str(args)) if isinstance(args, str) else map(str, args))
-                shell_script_lines.append(shlex.join(python_cmd))
+                # (Add conda activation logic as before - check path, source, activate)
+                try:
+                    conda_base_path = subprocess.check_output("conda info --base", shell=True, text=True).strip()
+                    if conda_base_path:
+                        conda_sh_path = os.path.join(conda_base_path, "etc/profile.d/conda.sh")
+                        if os.path.exists(conda_sh_path):
+                            shell_script_lines.append(f"source \"{conda_sh_path}\"")
+                            shell_script_lines.append(f"conda activate \"{conda_env}\"")
+                        else: shell_script_lines.append(f"# Warning: conda.sh not found at {conda_sh_path}")
+                    else: shell_script_lines.append("# Warning: Could not determine conda base path.")
+                except Exception as conda_e: shell_script_lines.append(f"# Warning: Error finding conda: {conda_e}")
 
+                # Prepare python command and arguments
+                python_cmd = ["python", script_path]
+                if args:
+                    # *** FIX for TypeError: Ensure all args are strings ***
+                    try:
+                        str_args = [str(arg) for arg in args]
+                        python_cmd.extend(str_args)
+                    except Exception as e_args:
+                        logger.error(f"GPU {gpu_id}: Job ID {job_id}: Error converting arguments to strings: {args}. Error: {e_args}")
+                        # Decide how to handle - skip args or raise error? Raising here.
+                        raise ValueError(f"Invalid arguments found for job {job_id}: {args}") from e_args
+
+                # Add the quoted python command to the shell script
+                shell_script_lines.append("echo \"Executing Python script...\"")
+                shell_script_lines.append(shlex.join(python_cmd)) # Use shlex.join for proper quoting
+
+                # Write temp script
                 script_id = f"{start_time.strftime('%Y%m%d%H%M%S')}_{os.getpid()}_{job_id[:4]}"
                 temp_script_dir = Path("/tmp") ; temp_script_dir.mkdir(exist_ok=True)
                 temp_script_path = temp_script_dir / f"direct_job_{script_id}.sh"
                 with open(temp_script_path, 'w') as f: f.write("\n".join(shell_script_lines))
                 os.chmod(temp_script_path, 0o755)
-                command_list = [str(temp_script_path)] # Command is the script
-                shell_mode = False
-            else:
-                # No conda env
-                command_list = ['python', script_path]
-                if args: command_list.extend(shlex.split(str(args)) if isinstance(args, str) else map(str, args))
-                shell_mode = False
 
-            logger.info(f"GPU {gpu_id}: Job ID {job_id}: Executing command: {' '.join(command_list)}")
+                command_list = [str(temp_script_path)] # Command is now the script path
+                shell_mode = False # We run the script directly, not via shell
+                logger.debug(f"GPU {gpu_id}: Using temp script for conda activation: {temp_script_path}")
+
+            else:
+                # --- No conda env, run python directly ---
+                command_list = ['python', script_path]
+                if args:
+                    # *** FIX for TypeError: Ensure all args are strings ***
+                    try:
+                        str_args = [str(arg) for arg in args]
+                        command_list.extend(str_args)
+                    except Exception as e_args:
+                        logger.error(f"GPU {gpu_id}: Job ID {job_id}: Error converting arguments to strings: {args}. Error: {e_args}")
+                        raise ValueError(f"Invalid arguments found for job {job_id}: {args}") from e_args
+
+                shell_mode = False
+                logger.debug(f"GPU {gpu_id}: Running python directly.")
+
+
+            logger.info(f"GPU {gpu_id}: Job ID {job_id}: Executing command: {' '.join(map(shlex.quote, command_list))}") # Quote for logging
             process = subprocess.Popen(
                 command_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 universal_newlines=True, bufsize=1, shell=shell_mode

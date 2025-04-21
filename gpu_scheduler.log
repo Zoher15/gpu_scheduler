@@ -1,0 +1,95 @@
+2025-04-21 12:15:13,981 - GPUJobScheduler - INFO - [MainThread] - Starting scheduler process with 8 GPUs.
+2025-04-21 12:15:13,981 - GPUJobScheduler - INFO - [MainThread] - State loaded successfully. Status: [False, False, False, False, False, False, False, False], Paused: {0}
+2025-04-21 12:15:13,982 - GPUJobScheduler - INFO - [MainThread] - Applying paused state for GPUs: {0}
+2025-04-21 12:15:13,996 - GPUJobScheduler - INFO - [MainThread] - Screen functionality enabled.
+2025-04-21 12:15:13,996 - GPUJobScheduler - INFO - [MainThread] - Attempting to add jobs from file: jobs.txt
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID dea793bc-b9f8-4d4d-b1a8-451986b5b021 for script evaluate_faces.py
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Job ID dea793bc-b9f8-4d4d-b1a8-451986b5b021 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4 for script evaluate_faces.py
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID a22dafcf-2df8-4931-80b9-4272151308c2 for script evaluate_faces.py
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Job ID a22dafcf-2df8-4931-80b9-4272151308c2 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 70f1e4b1-1c50-4eeb-973b-a18553af4158 for script evaluate_faces.py
+2025-04-21 12:15:13,997 - GPUJobScheduler - INFO - [MainThread] - Job ID 70f1e4b1-1c50-4eeb-973b-a18553af4158 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171 for script evaluate_faces.py
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID dc957558-95d8-40fe-8e2a-a6d4e1e94fce for script evaluate_faces.py
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Job ID dc957558-95d8-40fe-8e2a-a6d4e1e94fce added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32 for script evaluate_faces.py
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 668d180d-3349-4072-bdc2-27231d0d754f for script evaluate_faces.py
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Job ID 668d180d-3349-4072-bdc2-27231d0d754f added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID dd393f50-56d1-455c-ae28-6968231b01b5 for script evaluate_faces.py
+2025-04-21 12:15:13,998 - GPUJobScheduler - INFO - [MainThread] - Job ID dd393f50-56d1-455c-ae28-6968231b01b5 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 7672c935-2995-4446-bfb7-daa2e5343ce3 for script evaluate_faces.py
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Job ID 7672c935-2995-4446-bfb7-daa2e5343ce3 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 76074383-0d19-405f-9b28-80583cc2dd93 for script evaluate_faces.py
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Job ID 76074383-0d19-405f-9b28-80583cc2dd93 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04 for script evaluate_faces.py
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515 for script evaluate_faces.py
+2025-04-21 12:15:13,999 - GPUJobScheduler - INFO - [MainThread] - Job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515 added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [MainThread] - Generating Job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d for script evaluate_faces.py
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [MainThread] - Job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d added: 'evaluate_faces.py' (Priority: 0, GPUs: Any)
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [MainThread] - Finished processing job file 'jobs.txt'. Attempted to add 14 jobs.
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [MainThread] - Starting GPU Job Scheduler with 8 GPUs...
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [MainThread] - Starting 8 worker threads...
+2025-04-21 12:15:14,000 - GPUJobScheduler - INFO - [Worker-0] - Worker started.
+2025-04-21 12:15:14,001 - GPUJobScheduler - INFO - [Worker-1] - Worker started.
+2025-04-21 12:15:14,002 - GPUJobScheduler - INFO - [Worker-2] - Worker started.
+2025-04-21 12:15:14,003 - GPUJobScheduler - INFO - [Worker-3] - Worker started.
+2025-04-21 12:15:14,003 - GPUJobScheduler - INFO - [Worker-4] - Worker started.
+2025-04-21 12:15:14,003 - GPUJobScheduler - INFO - [Worker-5] - Worker started.
+2025-04-21 12:15:14,004 - GPUJobScheduler - INFO - [Worker-6] - Worker started.
+2025-04-21 12:15:14,004 - GPUJobScheduler - INFO - [Worker-7] - Worker started.
+2025-04-21 12:15:14,004 - GPUJobScheduler - INFO - [MainThread] - Scheduler started. Waiting for jobs...
+2025-04-21 12:15:14,087 - GPUJobScheduler - INFO - [Worker-0] - Found suitable GPU 1 for job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171.
+2025-04-21 12:15:14,088 - GPUJobScheduler - INFO - [Worker-0] - Assigning job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 1
+2025-04-21 12:15:14,182 - GPUJobScheduler - INFO - [Worker-1] - Found suitable GPU 2 for job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04.
+2025-04-21 12:15:14,182 - GPUJobScheduler - INFO - [Worker-1] - Assigning job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 2
+2025-04-21 12:15:14,284 - GPUJobScheduler - INFO - [Worker-2] - Found suitable GPU 3 for job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32.
+2025-04-21 12:15:14,284 - GPUJobScheduler - INFO - [Worker-2] - Assigning job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 3
+2025-04-21 12:15:14,378 - GPUJobScheduler - INFO - [Worker-3] - Found suitable GPU 4 for job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515.
+2025-04-21 12:15:14,378 - GPUJobScheduler - INFO - [Worker-3] - Assigning job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 4
+2025-04-21 12:15:14,464 - GPUJobScheduler - INFO - [Worker-4] - Found suitable GPU 5 for job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4.
+2025-04-21 12:15:14,464 - GPUJobScheduler - INFO - [Worker-4] - Assigning job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 5
+2025-04-21 12:15:14,555 - GPUJobScheduler - INFO - [Worker-5] - Found suitable GPU 6 for job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d.
+2025-04-21 12:15:14,556 - GPUJobScheduler - INFO - [Worker-5] - Assigning job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 6
+2025-04-21 12:15:14,646 - GPUJobScheduler - INFO - [Worker-6] - Found suitable GPU 7 for job ID 668d180d-3349-4072-bdc2-27231d0d754f.
+2025-04-21 12:15:14,647 - GPUJobScheduler - INFO - [Worker-6] - Assigning job ID 668d180d-3349-4072-bdc2-27231d0d754f (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py) to GPU 7
+2025-04-21 12:15:14,649 - GPUJobScheduler - INFO - [JobRunner-GPU1-evaluate_faces-01c3] - GPU 1: Preparing job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171 ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,651 - GPUJobScheduler - INFO - [JobRunner-GPU2-evaluate_faces-036a] - GPU 2: Preparing job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04 ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,652 - GPUJobScheduler - INFO - [JobRunner-GPU3-evaluate_faces-07d7] - GPU 3: Preparing job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32 ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,653 - GPUJobScheduler - INFO - [JobRunner-GPU4-evaluate_faces-3e3e] - GPU 4: Preparing job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515 ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,656 - GPUJobScheduler - INFO - [JobRunner-GPU5-evaluate_faces-4240] - GPU 5: Preparing job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4 ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,658 - GPUJobScheduler - INFO - [JobRunner-GPU6-evaluate_faces-6114] - GPU 6: Preparing job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,659 - GPUJobScheduler - INFO - [JobRunner-GPU7-evaluate_faces-668d] - GPU 7: Preparing job ID 668d180d-3349-4072-bdc2-27231d0d754f ('evaluate_faces.py', Priority: 0, Conda: table-talk)
+2025-04-21 12:15:14,918 - GPUJobScheduler - INFO - [JobRunner-GPU1-evaluate_faces-01c3] - GPU 1: Starting screen session 'gpujob_1_evaluate_faces.py_01c3c0_121514' for job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171
+2025-04-21 12:15:14,920 - GPUJobScheduler - INFO - [JobRunner-GPU2-evaluate_faces-036a] - GPU 2: Starting screen session 'gpujob_2_evaluate_faces.py_036aaf_121514' for job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04
+2025-04-21 12:15:14,922 - GPUJobScheduler - INFO - [JobRunner-GPU3-evaluate_faces-07d7] - GPU 3: Starting screen session 'gpujob_3_evaluate_faces.py_07d7ba_121514' for job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32
+2025-04-21 12:15:14,934 - GPUJobScheduler - INFO - [JobRunner-GPU1-evaluate_faces-01c3] - GPU 1: To view progress: screen -r gpujob_1_evaluate_faces.py_01c3c0_121514
+2025-04-21 12:15:14,934 - GPUJobScheduler - INFO - [JobRunner-GPU4-evaluate_faces-3e3e] - GPU 4: Starting screen session 'gpujob_4_evaluate_faces.py_3e3eda_121514' for job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515
+2025-04-21 12:15:14,935 - GPUJobScheduler - INFO - [ScreenMonitor-GPU1-01c3c0] - GPU 1: Monitoring screen session 'gpujob_1_evaluate_faces.py_01c3c0_121514' for job ID 01c3c0b1-ed86-4ae9-99ea-7db180ee6171...
+2025-04-21 12:15:14,936 - GPUJobScheduler - INFO - [JobRunner-GPU2-evaluate_faces-036a] - GPU 2: To view progress: screen -r gpujob_2_evaluate_faces.py_036aaf_121514
+2025-04-21 12:15:14,938 - GPUJobScheduler - INFO - [JobRunner-GPU5-evaluate_faces-4240] - GPU 5: Starting screen session 'gpujob_5_evaluate_faces.py_424026_121514' for job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4
+2025-04-21 12:15:14,938 - GPUJobScheduler - INFO - [JobRunner-GPU3-evaluate_faces-07d7] - GPU 3: To view progress: screen -r gpujob_3_evaluate_faces.py_07d7ba_121514
+2025-04-21 12:15:14,939 - GPUJobScheduler - INFO - [ScreenMonitor-GPU2-036aaf] - GPU 2: Monitoring screen session 'gpujob_2_evaluate_faces.py_036aaf_121514' for job ID 036aafe9-65e3-4dfe-b1b4-81c8a4fe2f04...
+2025-04-21 12:15:14,939 - GPUJobScheduler - INFO - [ScreenMonitor-GPU3-07d7ba] - GPU 3: Monitoring screen session 'gpujob_3_evaluate_faces.py_07d7ba_121514' for job ID 07d7ba7e-7f27-447e-bcff-d43fefe50a32...
+2025-04-21 12:15:14,940 - GPUJobScheduler - INFO - [JobRunner-GPU7-evaluate_faces-668d] - GPU 7: Starting screen session 'gpujob_7_evaluate_faces.py_668d18_121514' for job ID 668d180d-3349-4072-bdc2-27231d0d754f
+2025-04-21 12:15:14,951 - GPUJobScheduler - INFO - [JobRunner-GPU4-evaluate_faces-3e3e] - GPU 4: To view progress: screen -r gpujob_4_evaluate_faces.py_3e3eda_121514
+2025-04-21 12:15:14,951 - GPUJobScheduler - INFO - [ScreenMonitor-GPU4-3e3eda] - GPU 4: Monitoring screen session 'gpujob_4_evaluate_faces.py_3e3eda_121514' for job ID 3e3eda21-f88e-4e0b-b14e-5ce78604b515...
+2025-04-21 12:15:14,952 - GPUJobScheduler - INFO - [JobRunner-GPU6-evaluate_faces-6114] - GPU 6: Starting screen session 'gpujob_6_evaluate_faces.py_611400_121514' for job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d
+2025-04-21 12:15:14,955 - GPUJobScheduler - INFO - [JobRunner-GPU5-evaluate_faces-4240] - GPU 5: To view progress: screen -r gpujob_5_evaluate_faces.py_424026_121514
+2025-04-21 12:15:14,955 - GPUJobScheduler - INFO - [ScreenMonitor-GPU5-424026] - GPU 5: Monitoring screen session 'gpujob_5_evaluate_faces.py_424026_121514' for job ID 4240264f-fb81-4170-a1d6-eb99d4689cd4...
+2025-04-21 12:15:14,956 - GPUJobScheduler - INFO - [JobRunner-GPU7-evaluate_faces-668d] - GPU 7: To view progress: screen -r gpujob_7_evaluate_faces.py_668d18_121514
+2025-04-21 12:15:14,957 - GPUJobScheduler - INFO - [ScreenMonitor-GPU7-668d18] - GPU 7: Monitoring screen session 'gpujob_7_evaluate_faces.py_668d18_121514' for job ID 668d180d-3349-4072-bdc2-27231d0d754f...
+2025-04-21 12:15:14,971 - GPUJobScheduler - INFO - [JobRunner-GPU6-evaluate_faces-6114] - GPU 6: To view progress: screen -r gpujob_6_evaluate_faces.py_611400_121514
+2025-04-21 12:15:14,972 - GPUJobScheduler - INFO - [ScreenMonitor-GPU6-611400] - GPU 6: Monitoring screen session 'gpujob_6_evaluate_faces.py_611400_121514' for job ID 6114006e-e56c-4f57-8cc7-6f2e084c257d...
+2025-04-21 12:16:29,700 - GPUJobScheduler - WARNING - [Worker-2] - Finished assignment attempts for job ID 7672c935-2995-4446-bfb7-daa2e5343ce3 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,710 - GPUJobScheduler - WARNING - [Worker-1] - Finished assignment attempts for job ID 76074383-0d19-405f-9b28-80583cc2dd93 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,721 - GPUJobScheduler - WARNING - [Worker-6] - Finished assignment attempts for job ID 70f1e4b1-1c50-4eeb-973b-a18553af4158 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,722 - GPUJobScheduler - WARNING - [Worker-5] - Finished assignment attempts for job ID dd393f50-56d1-455c-ae28-6968231b01b5 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,722 - GPUJobScheduler - WARNING - [Worker-7] - Finished assignment attempts for job ID 70f1e4b1-1c50-4eeb-973b-a18553af4158 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,723 - GPUJobScheduler - WARNING - [Worker-4] - Finished assignment attempts for job ID dc957558-95d8-40fe-8e2a-a6d4e1e94fce (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,724 - GPUJobScheduler - WARNING - [Worker-3] - Finished assignment attempts for job ID a22dafcf-2df8-4931-80b9-4272151308c2 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
+2025-04-21 12:16:29,733 - GPUJobScheduler - WARNING - [Worker-0] - Finished assignment attempts for job ID 70f1e4b1-1c50-4eeb-973b-a18553af4158 (/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py). Assigned: False. Stop event: False
