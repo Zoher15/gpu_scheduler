@@ -3,21 +3,34 @@
 # but shlex.split in the scheduler should handle simple cases.
 # For safety, you could quote the whole argument string: "arg1 val1 arg2 val2"
 
-# full datasets
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2-2b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2-2b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-up-artifacts --llm qwen2-2b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2-2b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2-2b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-up-artifacts --llm qwen2-2b --dataset d3 --batch_size 20 --wait 0 --num 1
-
 # ablations
 # different phrases on genimage2k
 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-up-artifacts --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-texture --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-examine --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-upp-artifacts --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-style --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen2-2b --dataset genimage2k --batch_size 20 --wait 0 --num 1
+
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2-2b --dataset df402k --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2-2b --dataset df402k --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm qwen2-2b --dataset df402k --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen2-2b --dataset df402k --batch_size 20 --wait 0 --num 1
+
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2 --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2 --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm qwen2 --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen2 --dataset genimage2k --batch_size 5 --wait 0 --num 1
+
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen2 --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen2 --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm qwen2 --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen2 --dataset df402k --batch_size 5 --wait 0 --num 1
+
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm llama --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm llama --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm llama --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm llama --dataset genimage2k --batch_size 5 --wait 0 --num 1
+
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm llama --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm llama --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-artifacts --llm llama --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm llama --dataset df402k --batch_size 5 --wait 0 --num 1
