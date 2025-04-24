@@ -1,0 +1,418 @@
+2025-04-24 11:02:50,956 - GPUJobSchedulerCLI - INFO - [MainThread] - State file 'gpu_scheduler_state.json' not found. Assuming all GPUs available/unpaused.
+2025-04-24 11:02:50,956 - GPUJobSchedulerCLI - INFO - [MainThread] - State file 'gpu_scheduler_state.json' updated successfully to pause GPU 2.
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - Job file monitoring enabled for: 'jobs.txt'
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - Starting scheduler: GPUs=8, State File='gpu_scheduler_state.json', LLM Config='llm_config.json'
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - Loading LLM configuration from: llm_config.json
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - LLM config loaded. Default: 1.0, Models: {'qwen25-7b': 1.0, 'qwen25-3b': 1.0, 'qwen25-32b': 2.0, 'qwen25-72b': 3.0, 'qwen2-7b': 1.0, 'qwen2-72b': 3.0, 'qwen2-2b': 1.0, 'gemma3-12b': 1.0, 'gemma3-4b': 1.0, 'gemma3-27b': 2.0, 'llama3-11b': 1.0, 'llama3-90b': 3.0}
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - State loaded successfully into memory. Status (Allocation): [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], Paused: {2}
+2025-04-24 11:02:56,944 - GPUJobScheduler - INFO - [MainThread] - Initial paused state loaded for GPUs: {2}
+2025-04-24 11:02:56,962 - GPUJobScheduler - INFO - [MainThread] - Screen functionality enabled (using `script` for logging).
+2025-04-24 11:02:56,962 - GPUJobScheduler - INFO - [MainThread] - Starting GPU Job Scheduler with 8 GPUs...
+2025-04-24 11:02:56,962 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File/State Monitor] Starting. Job file monitoring: 'jobs.txt' (Interval: 30s). State file monitoring: 'gpu_scheduler_state.json' (Interval: 20s)
+2025-04-24 11:02:56,962 - GPUJobScheduler - INFO - [MainThread] - Starting 8 worker threads...
+2025-04-24 11:02:56,963 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File/State Monitor] Performing initial load from job file: jobs.txt
+2025-04-24 11:02:56,963 - GPUJobScheduler - INFO - [Worker-0] - Worker started.
+2025-04-24 11:02:56,963 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [Initial Load] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:02:56,963 - GPUJobScheduler - INFO - [Worker-1] - Worker started.
+2025-04-24 11:02:56,964 - GPUJobScheduler - INFO - [Worker-2] - Worker started.
+2025-04-24 11:02:56,964 - GPUJobScheduler - INFO - [Worker-3] - Worker started.
+2025-04-24 11:02:56,964 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 721680eda309c87d747a9bd3a6c3c3a0, JobID: f5721107-9d6d-40cc-abd3-ca53b39441dc, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,965 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID f5721107-9d6d-40cc-abd3-ca53b39441dc (File, Hash: 721680eda309c87d747a9bd3a6c3c3a0, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,965 - GPUJobScheduler - INFO - [Worker-4] - Worker started.
+2025-04-24 11:02:56,965 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 3b568dee43d8f2c42345465338cc8dca, JobID: 9035ffa8-8db5-43ba-920a-6245eeb12ca0, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,965 - GPUJobScheduler - INFO - [Worker-5] - Worker started.
+2025-04-24 11:02:56,966 - GPUJobScheduler - INFO - [Worker-6] - Worker started.
+2025-04-24 11:02:56,966 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0 (File, Hash: 3b568dee43d8f2c42345465338cc8dca, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,966 - GPUJobScheduler - INFO - [Worker-7] - Worker started.
+2025-04-24 11:02:56,966 - GPUJobScheduler - INFO - [MainThread] - Scheduler started. Waiting for jobs...
+2025-04-24 11:02:56,968 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 2610f469379fdde8adc9719fdca5b2ae, JobID: 17ae7433-ab68-44e0-833f-e020c6d6ade8, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,968 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8 (File, Hash: 2610f469379fdde8adc9719fdca5b2ae, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,968 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 8031c60b4887e1055fcf9455baff831c, JobID: 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,969 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff (File, Hash: 8031c60b4887e1055fcf9455baff831c, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,970 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: ec62ad2d21d72ba61bbba5f9ef4fecb8, JobID: 6a60864e-1855-4de1-92c1-c6c9bfe52762, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,970 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762 (File, Hash: ec62ad2d21d72ba61bbba5f9ef4fecb8, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,971 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 84ecb176ede450c081a1ec54d2e56f95, JobID: a3a5614d-a045-4f7a-af08-e928d534027e, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,971 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID a3a5614d-a045-4f7a-af08-e928d534027e (File, Hash: 84ecb176ede450c081a1ec54d2e56f95, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,971 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 608ce2f516f7984697d7bdd762a250eb, JobID: 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,971 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (File, Hash: 608ce2f516f7984697d7bdd762a250eb, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,971 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 841b7452f343af6205341ce4484c377c, JobID: d3a97468-ed45-4729-b3f9-d90ae1839637, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,972 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID d3a97468-ed45-4729-b3f9-d90ae1839637 (File, Hash: 841b7452f343af6205341ce4484c377c, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,973 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 928776ce7eb8377a4500b2a4366552e8, JobID: 519e181c-e4b5-4d6e-b5f1-1d778bf40369, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,973 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (File, Hash: 928776ce7eb8377a4500b2a4366552e8, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: d82802416d01d9fb5aca2d9e55f3d62b, JobID: 71165d83-db4c-4387-ae8f-a51482252361, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 71165d83-db4c-4387-ae8f-a51482252361 (File, Hash: d82802416d01d9fb5aca2d9e55f3d62b, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 524fffa7a2bf7aeb93adbd8bc28a88f4, JobID: e7ce2b27-6c06-4e16-8523-b0910a927ca1, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (File, Hash: 524fffa7a2bf7aeb93adbd8bc28a88f4, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 6eace2a82380dc10b7a1cedf9fc243ed, JobID: b8401850-1136-47f7-8406-24a4c1454623, LLM: llama3-11b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID b8401850-1136-47f7-8406-24a4c1454623 (File, Hash: 6eace2a82380dc10b7a1cedf9fc243ed, LLM: llama3-11b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: f7831a71565e0ac60657ec49360c3923, JobID: b3679a13-5c35-4a9a-9bac-d4fd21a360bb, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,974 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (File, Hash: f7831a71565e0ac60657ec49360c3923, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: 2aa55b5891e4efeda880b106f55e91e8, JobID: f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (File, Hash: 2aa55b5891e4efeda880b106f55e91e8, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Adding job from file (Hash: dc40e09a9c2670dbf5ee727af3cfba6f, JobID: 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b, LLM: qwen25-7b, Req: 1.00). Marked as managed.
+2025-04-24 11:02:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - Job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (File, Hash: dc40e09a9c2670dbf5ee727af3cfba6f, LLM: qwen25-7b, Req: 1.00) added to queue: 'evaluate_AI.py' (Prio: 0, GPUs Allowed: Any)
+2025-04-24 11:02:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [Initial Load] Finished processing 'jobs.txt'. Processed 15 lines. Added 15 new jobs.
+2025-04-24 11:02:57,164 - GPUJobScheduler - INFO - [Worker-0] - Found suitable fractional/single GPU 0 for job ID f5721107-9d6d-40cc-abd3-ca53b39441dc (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,164 - GPUJobScheduler - INFO - [Worker-0] - Assigning job ID f5721107-9d6d-40cc-abd3-ca53b39441dc (LLM: qwen25-7b, Req: 1.00) to GPU(s) [0]
+2025-04-24 11:02:57,165 - GPUJobScheduler - INFO - [JobRunner-GPU0-zeroshot-f572] - GPU(s) 0: Preparing job ID f5721107-9d6d-40cc-abd3-ca53b39441dc (LLM: qwen25-7b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,166 - GPUJobScheduler - INFO - [JobRunner-GPU0-zeroshot-f572] - GPU(s) 0: Starting screen session 'gpujob_0_zeroshot_f57211_110257' for job ID f5721107-9d6d-40cc-abd3-ca53b39441dc
+2025-04-24 11:02:57,184 - GPUJobScheduler - INFO - [JobRunner-GPU0-zeroshot-f572] - GPU(s) 0: Screen session launched. To view progress: screen -r gpujob_0_zeroshot_f57211_110257
+2025-04-24 11:02:57,185 - GPUJobScheduler - INFO - [JobRunner-GPU0-zeroshot-f572] - GPU(s) 0: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_0_zeroshot_f57211_110257.typescript
+2025-04-24 11:02:57,185 - GPUJobScheduler - WARNING - [JobRunner-GPU0-zeroshot-f572] - GPU(s) 0: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_0_zeroshot_f57211_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,185 - GPUJobScheduler - INFO - [ScreenMonitor-GPU0-zeroshot-f57211] - GPU(s) 0: Job ID f5721107-9d6d-40cc-abd3-ca53b39441dc (Hash: 721680eda309c87d747a9bd3a6c3c3a0, Screen: gpujob_0_zeroshot_f57211_110257, Mode: zeroshot) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_0_zeroshot_f57211_110257.typescript
+2025-04-24 11:02:57,229 - GPUJobScheduler - INFO - [Worker-5] - Found suitable fractional/single GPU 1 for job ID a3a5614d-a045-4f7a-af08-e928d534027e (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,230 - GPUJobScheduler - INFO - [Worker-5] - Assigning job ID a3a5614d-a045-4f7a-af08-e928d534027e (LLM: llama3-11b, Req: 1.00) to GPU(s) [1]
+2025-04-24 11:02:57,231 - GPUJobScheduler - INFO - [JobRunner-GPU1-zeroshot-2-artifacts-a3a5] - GPU(s) 1: Preparing job ID a3a5614d-a045-4f7a-af08-e928d534027e (LLM: llama3-11b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,233 - GPUJobScheduler - INFO - [JobRunner-GPU1-zeroshot-2-artifacts-a3a5] - GPU(s) 1: Starting screen session 'gpujob_1_zeroshot-2-artifacts_a3a561_110257' for job ID a3a5614d-a045-4f7a-af08-e928d534027e
+2025-04-24 11:02:57,236 - GPUJobScheduler - INFO - [Worker-4] - Found suitable fractional/single GPU 3 for job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762 (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,237 - GPUJobScheduler - INFO - [Worker-4] - Assigning job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762 (LLM: llama3-11b, Req: 1.00) to GPU(s) [3]
+2025-04-24 11:02:57,237 - GPUJobScheduler - INFO - [JobRunner-GPU3-zeroshot-cot-6a60] - GPU(s) 3: Preparing job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762 (LLM: llama3-11b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,237 - GPUJobScheduler - INFO - [JobRunner-GPU3-zeroshot-cot-6a60] - GPU(s) 3: Starting screen session 'gpujob_3_zeroshot-cot_6a6086_110257' for job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762
+2025-04-24 11:02:57,242 - GPUJobScheduler - INFO - [Worker-2] - Found suitable fractional/single GPU 4 for job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8 (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,243 - GPUJobScheduler - INFO - [Worker-2] - Assigning job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8 (LLM: qwen25-7b, Req: 1.00) to GPU(s) [4]
+2025-04-24 11:02:57,243 - GPUJobScheduler - INFO - [JobRunner-GPU4-zeroshot-2-artifacts-17ae] - GPU(s) 4: Preparing job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8 (LLM: qwen25-7b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,245 - GPUJobScheduler - INFO - [JobRunner-GPU4-zeroshot-2-artifacts-17ae] - GPU(s) 4: Starting screen session 'gpujob_4_zeroshot-2-artifacts_17ae74_110257' for job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8
+2025-04-24 11:02:57,250 - GPUJobScheduler - INFO - [JobRunner-GPU1-zeroshot-2-artifacts-a3a5] - GPU(s) 1: Screen session launched. To view progress: screen -r gpujob_1_zeroshot-2-artifacts_a3a561_110257
+2025-04-24 11:02:57,250 - GPUJobScheduler - INFO - [JobRunner-GPU1-zeroshot-2-artifacts-a3a5] - GPU(s) 1: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_1_zeroshot-2-artifacts_a3a561_110257.typescript
+2025-04-24 11:02:57,250 - GPUJobScheduler - WARNING - [JobRunner-GPU1-zeroshot-2-artifacts-a3a5] - GPU(s) 1: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_1_zeroshot-2-artifacts_a3a561_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,250 - GPUJobScheduler - INFO - [ScreenMonitor-GPU1-zeroshot-2-artifacts-a3a561] - GPU(s) 1: Job ID a3a5614d-a045-4f7a-af08-e928d534027e (Hash: 84ecb176ede450c081a1ec54d2e56f95, Screen: gpujob_1_zeroshot-2-artifacts_a3a561_110257, Mode: zeroshot-2-artifacts) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_1_zeroshot-2-artifacts_a3a561_110257.typescript
+2025-04-24 11:02:57,253 - GPUJobScheduler - INFO - [Worker-3] - Found suitable fractional/single GPU 5 for job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,253 - GPUJobScheduler - INFO - [Worker-3] - Assigning job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff (LLM: llama3-11b, Req: 1.00) to GPU(s) [5]
+2025-04-24 11:02:57,254 - GPUJobScheduler - INFO - [JobRunner-GPU5-zeroshot-2b0c] - GPU(s) 5: Preparing job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff (LLM: llama3-11b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,255 - GPUJobScheduler - INFO - [Worker-1] - Found suitable fractional/single GPU 6 for job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0 (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,256 - GPUJobScheduler - INFO - [JobRunner-GPU3-zeroshot-cot-6a60] - GPU(s) 3: Screen session launched. To view progress: screen -r gpujob_3_zeroshot-cot_6a6086_110257
+2025-04-24 11:02:57,256 - GPUJobScheduler - INFO - [JobRunner-GPU3-zeroshot-cot-6a60] - GPU(s) 3: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_3_zeroshot-cot_6a6086_110257.typescript
+2025-04-24 11:02:57,256 - GPUJobScheduler - INFO - [Worker-1] - Assigning job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0 (LLM: qwen25-7b, Req: 1.00) to GPU(s) [6]
+2025-04-24 11:02:57,256 - GPUJobScheduler - WARNING - [JobRunner-GPU3-zeroshot-cot-6a60] - GPU(s) 3: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_3_zeroshot-cot_6a6086_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,256 - GPUJobScheduler - INFO - [Worker-7] - Found suitable fractional/single GPU 7 for job ID d3a97468-ed45-4729-b3f9-d90ae1839637 (Req: 1.00, CurrentAlloc: 0.00)
+2025-04-24 11:02:57,256 - GPUJobScheduler - INFO - [JobRunner-GPU5-zeroshot-2b0c] - GPU(s) 5: Starting screen session 'gpujob_5_zeroshot_2b0ca8_110257' for job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff
+2025-04-24 11:02:57,257 - GPUJobScheduler - INFO - [JobRunner-GPU6-zeroshot-cot-9035] - GPU(s) 6: Preparing job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0 (LLM: qwen25-7b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,257 - GPUJobScheduler - INFO - [ScreenMonitor-GPU3-zeroshot-cot-6a6086] - GPU(s) 3: Job ID 6a60864e-1855-4de1-92c1-c6c9bfe52762 (Hash: ec62ad2d21d72ba61bbba5f9ef4fecb8, Screen: gpujob_3_zeroshot-cot_6a6086_110257, Mode: zeroshot-cot) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_3_zeroshot-cot_6a6086_110257.typescript
+2025-04-24 11:02:57,260 - GPUJobScheduler - INFO - [Worker-7] - Assigning job ID d3a97468-ed45-4729-b3f9-d90ae1839637 (LLM: qwen25-7b, Req: 1.00) to GPU(s) [7]
+2025-04-24 11:02:57,260 - GPUJobScheduler - INFO - [JobRunner-GPU7-zeroshot-cot-d3a9] - GPU(s) 7: Preparing job ID d3a97468-ed45-4729-b3f9-d90ae1839637 (LLM: qwen25-7b, Req: 1.00) [Original Line: 0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset df402k --batch_size 5 --wait 0 --num 1]
+2025-04-24 11:02:57,261 - GPUJobScheduler - INFO - [JobRunner-GPU6-zeroshot-cot-9035] - GPU(s) 6: Starting screen session 'gpujob_6_zeroshot-cot_9035ff_110257' for job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0
+2025-04-24 11:02:57,264 - GPUJobScheduler - INFO - [JobRunner-GPU4-zeroshot-2-artifacts-17ae] - GPU(s) 4: Screen session launched. To view progress: screen -r gpujob_4_zeroshot-2-artifacts_17ae74_110257
+2025-04-24 11:02:57,264 - GPUJobScheduler - INFO - [JobRunner-GPU7-zeroshot-cot-d3a9] - GPU(s) 7: Starting screen session 'gpujob_7_zeroshot-cot_d3a974_110257' for job ID d3a97468-ed45-4729-b3f9-d90ae1839637
+2025-04-24 11:02:57,264 - GPUJobScheduler - INFO - [JobRunner-GPU4-zeroshot-2-artifacts-17ae] - GPU(s) 4: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_4_zeroshot-2-artifacts_17ae74_110257.typescript
+2025-04-24 11:02:57,266 - GPUJobScheduler - WARNING - [JobRunner-GPU4-zeroshot-2-artifacts-17ae] - GPU(s) 4: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_4_zeroshot-2-artifacts_17ae74_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,266 - GPUJobScheduler - INFO - [ScreenMonitor-GPU4-zeroshot-2-artifacts-17ae74] - GPU(s) 4: Job ID 17ae7433-ab68-44e0-833f-e020c6d6ade8 (Hash: 2610f469379fdde8adc9719fdca5b2ae, Screen: gpujob_4_zeroshot-2-artifacts_17ae74_110257, Mode: zeroshot-2-artifacts) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_4_zeroshot-2-artifacts_17ae74_110257.typescript
+2025-04-24 11:02:57,279 - GPUJobScheduler - INFO - [JobRunner-GPU5-zeroshot-2b0c] - GPU(s) 5: Screen session launched. To view progress: screen -r gpujob_5_zeroshot_2b0ca8_110257
+2025-04-24 11:02:57,279 - GPUJobScheduler - INFO - [JobRunner-GPU5-zeroshot-2b0c] - GPU(s) 5: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_5_zeroshot_2b0ca8_110257.typescript
+2025-04-24 11:02:57,279 - GPUJobScheduler - WARNING - [JobRunner-GPU5-zeroshot-2b0c] - GPU(s) 5: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_5_zeroshot_2b0ca8_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,280 - GPUJobScheduler - INFO - [ScreenMonitor-GPU5-zeroshot-2b0ca8] - GPU(s) 5: Job ID 2b0ca874-1bae-4a97-afd7-cb54c0cb3bff (Hash: 8031c60b4887e1055fcf9455baff831c, Screen: gpujob_5_zeroshot_2b0ca8_110257, Mode: zeroshot) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_5_zeroshot_2b0ca8_110257.typescript
+2025-04-24 11:02:57,283 - GPUJobScheduler - INFO - [JobRunner-GPU7-zeroshot-cot-d3a9] - GPU(s) 7: Screen session launched. To view progress: screen -r gpujob_7_zeroshot-cot_d3a974_110257
+2025-04-24 11:02:57,284 - GPUJobScheduler - INFO - [JobRunner-GPU7-zeroshot-cot-d3a9] - GPU(s) 7: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_7_zeroshot-cot_d3a974_110257.typescript
+2025-04-24 11:02:57,284 - GPUJobScheduler - WARNING - [JobRunner-GPU7-zeroshot-cot-d3a9] - GPU(s) 7: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_7_zeroshot-cot_d3a974_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,284 - GPUJobScheduler - INFO - [JobRunner-GPU6-zeroshot-cot-9035] - GPU(s) 6: Screen session launched. To view progress: screen -r gpujob_6_zeroshot-cot_9035ff_110257
+2025-04-24 11:02:57,284 - GPUJobScheduler - INFO - [ScreenMonitor-GPU7-zeroshot-cot-d3a974] - GPU(s) 7: Job ID d3a97468-ed45-4729-b3f9-d90ae1839637 (Hash: 841b7452f343af6205341ce4484c377c, Screen: gpujob_7_zeroshot-cot_d3a974_110257, Mode: zeroshot-cot) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_7_zeroshot-cot_d3a974_110257.typescript
+2025-04-24 11:02:57,284 - GPUJobScheduler - INFO - [JobRunner-GPU6-zeroshot-cot-9035] - GPU(s) 6: Job output log (typescript): /tmp/gpu_scheduler_logs/output_gpujob_6_zeroshot-cot_9035ff_110257.typescript
+2025-04-24 11:02:57,284 - GPUJobScheduler - WARNING - [JobRunner-GPU6-zeroshot-cot-9035] - GPU(s) 6: Note: Log file '/tmp/gpu_scheduler_logs/output_gpujob_6_zeroshot-cot_9035ff_110257.typescript' contains raw terminal escape codes.
+2025-04-24 11:02:57,285 - GPUJobScheduler - INFO - [ScreenMonitor-GPU6-zeroshot-cot-9035ff] - GPU(s) 6: Job ID 9035ffa8-8db5-43ba-920a-6245eeb12ca0 (Hash: 3b568dee43d8f2c42345465338cc8dca, Screen: gpujob_6_zeroshot-cot_9035ff_110257, Mode: zeroshot-cot) Monitoring screen session... Log: /tmp/gpu_scheduler_logs/output_gpujob_6_zeroshot-cot_9035ff_110257.typescript
+2025-04-24 11:03:26,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:03:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:03:47,676 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:47,826 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,033 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,116 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,117 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,261 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,353 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:48,356 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:03:56,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:03:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:04:26,975 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:04:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:04:38,178 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,334 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,549 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,747 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,765 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,872 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,988 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:38,996 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:04:56,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:04:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:05:26,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:05:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:05:28,679 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:28,816 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,045 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,292 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,326 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,434 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,591 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:29,599 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:05:56,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:05:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:06:19,181 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:19,318 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:19,531 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:19,818 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:19,873 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:20,006 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:20,167 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:20,193 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:06:26,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:06:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:06:56,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:06:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:07:09,679 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:09,804 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,049 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,334 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,430 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,542 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,687 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:10,736 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:07:26,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:07:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:07:56,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:07:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:08:00,174 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:00,311 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:00,524 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:00,828 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:00,947 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:01,044 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:01,225 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:01,260 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:26,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:08:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:08:50,675 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:50,806 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,013 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,319 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,448 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,545 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,770 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:51,800 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:08:56,976 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:08:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:09:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:09:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:09:41,161 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:41,297 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:41,484 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:41,805 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:41,987 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:42,068 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:42,312 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:42,347 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:09:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:09:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:10:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:10:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:10:31,640 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:31,779 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:31,975 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:32,313 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:32,483 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:32,579 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:32,824 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:32,881 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:10:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:10:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:11:22,129 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:22,294 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:22,476 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:22,793 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:22,990 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:23,124 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:23,343 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:23,412 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:11:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:11:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:11:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:11:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:12:12,626 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:12,790 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:12,977 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:13,294 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:13,480 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:13,627 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:13,896 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:14,014 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:12:26,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:12:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:12:56,977 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:12:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:13:03,127 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:03,290 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:03,478 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:03,803 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:03,979 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:04,121 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:04,374 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:04,496 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:13:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:13:53,613 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:53,790 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:53,964 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:54,278 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:54,484 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:54,603 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:54,862 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:54,983 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:13:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:13:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:14:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:14:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:14:44,097 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:44,275 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:44,476 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:44,750 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:44,961 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:45,085 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:45,349 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:45,475 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:14:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:14:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:15:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:15:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:15:34,602 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:34,763 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:34,972 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:35,227 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:35,462 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:35,583 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:35,833 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:35,982 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:15:56,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:15:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:16:25,108 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:25,249 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:25,480 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:25,699 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:25,978 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:26,108 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:26,338 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:26,468 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:16:26,978 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:16:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:16:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:16:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:17:15,596 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:15,738 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:15,959 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:16,179 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:16,480 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:16,600 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:16,813 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:16,949 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:17:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:17:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:17:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:17:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:18:06,088 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:06,239 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:06,446 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:06,662 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:06,986 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:07,107 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:07,304 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:07,443 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:18:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:18:56,598 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:56,753 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:56,929 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:18:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:18:57,138 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:57,526 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:57,627 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:57,808 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:18:57,938 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:19:26,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:19:47,090 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:47,251 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:47,424 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:47,608 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:48,030 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:48,152 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:48,302 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:48,431 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:19:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:19:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:20:26,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:20:26,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:20:37,581 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:37,769 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:37,916 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:38,086 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:38,517 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:38,662 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:38,811 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:38,900 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:20:56,979 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:20:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:21:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:21:26,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:21:28,096 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:28,277 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:28,405 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:28,562 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:29,020 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:29,179 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:29,320 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:29,416 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:21:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:21:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:22:18,585 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:18,776 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:18,912 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:19,041 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:19,506 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:19,686 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:19,823 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:19,908 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:22:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:22:26,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:22:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:22:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:23:09,066 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:09,271 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:09,423 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:09,524 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:09,981 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:10,172 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:10,349 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:10,437 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:23:26,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:23:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:23:56,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:23:59,554 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:59,769 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:23:59,937 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:00,031 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:00,480 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:00,685 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:00,859 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:00,950 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:24:26,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:24:50,045 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:50,248 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:50,449 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:50,566 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:50,983 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:51,184 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:51,387 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:51,477 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:24:56,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:24:56,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:25:26,980 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:25:26,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.
+2025-04-24 11:25:40,549 - GPUJobScheduler - WARNING - [Worker-6] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 3cf2eb3e-da6a-4ada-985b-04c3fa89bb57 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:40,727 - GPUJobScheduler - WARNING - [Worker-0] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 519e181c-e4b5-4d6e-b5f1-1d778bf40369 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:40,964 - GPUJobScheduler - WARNING - [Worker-4] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 7b9e9cd5-1cad-4ee2-b4a1-1c588b15af1b (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:41,060 - GPUJobScheduler - WARNING - [Worker-2] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b3679a13-5c35-4a9a-9bac-d4fd21a360bb (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:41,467 - GPUJobScheduler - WARNING - [Worker-5] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID 71165d83-db4c-4387-ae8f-a51482252361 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:41,666 - GPUJobScheduler - WARNING - [Worker-3] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID b8401850-1136-47f7-8406-24a4c1454623 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:41,897 - GPUJobScheduler - WARNING - [Worker-1] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID e7ce2b27-6c06-4e16-8523-b0910a927ca1 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:42,017 - GPUJobScheduler - WARNING - [Worker-7] - Exceeded max attempts (5) or failed to assign GPU(s) for job ID f9f9b4a0-f0a1-4608-bb0a-ba23cd97bd23 (Req: 1.00). Re-queueing job.
+2025-04-24 11:25:56,981 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Attempting to process jobs from file: jobs.txt
+2025-04-24 11:25:56,982 - GPUJobScheduler - INFO - [FileAndStateMonitor] - [File Monitor] Finished processing 'jobs.txt'. Processed 15 lines. Added 0 new jobs.

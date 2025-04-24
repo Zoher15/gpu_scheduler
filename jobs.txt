@@ -3,26 +3,22 @@
 # but shlex.split in the scheduler should handle simple cases.
 # For safety, you could quote the whole argument string: "arg1 val1 arg2 val2"
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen25-3b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen25-3b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-3b --dataset genimage --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 5 --wait 0 --num 1
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm gemma3-4b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm gemma3-4b --dataset genimage --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm gemma3-4b --dataset genimage --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset genimage2k --batch_size 5 --wait 0 --num 1
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen25-3b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen25-3b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-3b --dataset d3 --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset df402k --batch_size 5 --wait 0 --num 1
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm gemma3-4b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm gemma3-4b --dataset d3 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm gemma3-4b --dataset d3 --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset df402k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset df402k --batch_size 5 --wait 0 --num 1
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm qwen25-3b --dataset df40 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm qwen25-3b --dataset df40 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-3b --dataset df40 --batch_size 20 --wait 0 --num 1
-
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot --llm gemma3-4b --dataset df40 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-cot --llm gemma3-4b --dataset df40 --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_faces.py,table-talk,--mode zeroshot-2-artifacts --llm gemma3-4b --dataset df40 --batch_size 20 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset d32k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset d32k --batch_size 5 --wait 0 --num 1
+0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset d32k --batch_size 5 --wait 0 --num 1
