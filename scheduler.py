@@ -57,7 +57,8 @@ def list_screens() -> List[str]:
             check=True
         )
         # Regex to find scheduler-specific screen sessions (PID.gpujob_...)
-        screen_pattern = re.compile(r'^\s*(\d+\.gpujob_\d+_\S+)\s+\(.*\)', re.MULTILINE)
+        # MODIFIED REGEX: Allow digits and commas for GPU IDs
+        screen_pattern = re.compile(r'^\s*(\d+\.gpujob_[\d,]+_\S+)\s+\(.*\)', re.MULTILINE)
         matches = screen_pattern.findall(result.stdout)
         # Extract the part after the PID and dot (the session name we set)
         session_names = [match.split('.', 1)[-1] for match in matches if '.' in match]
@@ -1713,7 +1714,7 @@ def main():
         logger.warning(f"GPUtil detection failed: {e}. Defaulting --gpus may be inaccurate.")
         detected_gpus = 1 # Fallback, maybe 8 is better?
 
-    parser = argparse.ArgumentParser(description='GPU Job Scheduler v2.11 (Screen uses `script`)', formatter_class=argparse.RawTextHelpFormatter) # Version bump
+    parser = argparse.ArgumentParser(description='GPU Job Scheduler v2.12 (Screen list fix)', formatter_class=argparse.RawTextHelpFormatter) # Version bump
     parser.add_argument('--state-file', type=str, default=DEFAULT_STATE_FILE, help=f'Path to scheduler state file (default: {DEFAULT_STATE_FILE}).')
     subparsers = parser.add_subparsers(dest='command', help='Available commands', required=True)
 
