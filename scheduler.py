@@ -16,6 +16,7 @@ from pathlib import Path # Use pathlib
 from typing import List, Dict, Tuple, Any, Optional, Set # Add type hints and Set
 import hashlib # For hashing job lines
 import math # For ceil
+import itertools
 
 # --- Constants ---
 DEFAULT_JOBS_FILE = "jobs.txt"
@@ -23,6 +24,7 @@ DEFAULT_LLM_CONFIG_FILE = "llm_config.json" # Default LLM config file name
 DEFAULT_STATE_FILE = "gpu_scheduler_state.json" # Default state file name
 RUNNING_JOBS_LOG_FILE = "running_jobs.log" # <<< ADDED >>> Log file for running jobs
 DONE_JOBS_LOG_FILE = "done_jobs.log"       # <<< ADDED >>> Log file for completed jobs
+EXPERIMENT_RESULTS_DIR = "experiment_results"  # <<< NEW >>> Directory for experiment outputs
 FILE_MONITOR_INTERVAL_S = 30 # Check jobs file every 30 seconds
 STATE_CHECK_INTERVAL_S = 20 # Check state file for external changes every 20 seconds
 # Directory for screen output logs (raw output including escape codes)
@@ -33,6 +35,23 @@ GPU_ALLOCATION_PRECISION = 0.01 # For float comparisons
 MAX_MANAGED_HASHES = 10000 # Maximum number of job hashes to keep in memory
 CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5 # Number of consecutive failures before triggering circuit breaker
 CIRCUIT_BREAKER_TIMEOUT = 300 # Circuit breaker timeout in seconds (5 minutes)
+
+# <<< NEW >>> Experiment tracking constants
+EXPERIMENT_LOG_FILE = "experiment_tracker.log"  # Log for experiment progress
+HYPERPARAMETER_PATTERNS = {
+    '--llm': 'model',
+    '--dataset': 'dataset', 
+    '--mode': 'mode',
+    '--batch_size': 'batch_size',
+    '--context': 'context',
+    '--num_sequences': 'num_sequences',
+    '--n': 'num_runs',
+    '--num': 'num_runs',
+    '--lr': 'learning_rate',
+    '--epochs': 'epochs',
+    '--temperature': 'temperature',
+    '--max_tokens': 'max_tokens'
+}
 
 # Setup logging (ensure threadName is included)
 logging.basicConfig(
@@ -211,6 +230,15 @@ class GPUJobScheduler:
         self.load_state() # Load previous state (paused/busy GPUs) from file into memory
         self._apply_initial_paused_state() # Log the initially loaded paused state
 
+        # <<< NEW >>> Experiment Tracking ---
+        self.experiment_results_dir = Path(EXPERIMENT_RESULTS_DIR)
+        self.experiment_results_dir.mkdir(exist_ok=True)
+        self.experiment_log_file = Path(EXPERIMENT_LOG_FILE)
+        self.experiment_groups: Dict[str, List[str]] = {}  # experiment_id -> [job_ids]
+        self.job_hyperparameters: Dict[str, Dict[str, str]] = {}  # job_id -> hyperparams
+        self.experiment_lock = threading.Lock()
+        # ----------------------------------
+
     def _load_llm_config(self):
         """Loads LLM GPU requirements from the specified JSON file."""
         logger.info(f"Loading LLM configuration from: {self.llm_config_path}")
@@ -265,16 +293,116 @@ class GPUJobScheduler:
             logger.info(f"Using default requirement ({self.default_llm_requirement}) for all LLMs.")
 
     def get_llm_gpu_requirement(self, llm_name: Optional[str]) -> float:
-        """Gets GPU requirement for a given LLM name."""
-        if llm_name and llm_name in self.llm_requirements:
-            return self.llm_requirements[llm_name]
+        """
+        Returns the GPU requirement for a given LLM.
+        If the LLM is not found in the config, returns the default requirement.
+        """
+        if llm_name is None:
+            return self.default_llm_requirement
+        return self.llm_requirements.get(llm_name, self.default_llm_requirement)
+
+    def _extract_hyperparameters(self, args: Optional[List[str]]) -> Dict[str, str]:
+        """
+        Extracts hyperparameters from job arguments based on common ML patterns.
+        Returns a dictionary of hyperparameter names and values.
+        """
+        hyperparams = {}
+        if not args:
+            return hyperparams
+            
+        try:
+            for i, arg in enumerate(args):
+                if arg in HYPERPARAMETER_PATTERNS and i + 1 < len(args):
+                    param_name = HYPERPARAMETER_PATTERNS[arg]
+                    param_value = args[i + 1]
+                    hyperparams[param_name] = param_value
+        except Exception as e:
+            logger.warning(f"Error extracting hyperparameters from args {args}: {e}")
+            
+        return hyperparams
+
+    def _generate_experiment_id(self, script_path: str, hyperparams: Dict[str, str]) -> str:
+        """
+        Generates a unique experiment ID based on script name and key hyperparameters.
+        """
+        script_name = Path(script_path).stem
+        key_params = []
         
-        if llm_name:
-            logger.warning(f"LLM '{llm_name}' not found in configuration. Using default requirement: {self.default_llm_requirement}")
+        # Priority order for experiment grouping
+        param_order = ['model', 'dataset', 'mode', 'context']
+        for param in param_order:
+            if param in hyperparams:
+                key_params.append(f"{param}={hyperparams[param]}")
+        
+        if key_params:
+            return f"{script_name}_{'-'.join(key_params)}"
         else:
-            logger.debug(f"No LLM specified. Using default requirement: {self.default_llm_requirement}")
-        
-        return self.default_llm_requirement
+            return f"{script_name}_default"
+
+    def _log_experiment_start(self, experiment_id: str, job_id: str, hyperparams: Dict[str, str]):
+        """
+        Logs the start of an experiment job with hyperparameters.
+        """
+        try:
+            with self.experiment_lock:
+                if experiment_id not in self.experiment_groups:
+                    self.experiment_groups[experiment_id] = []
+                self.experiment_groups[experiment_id].append(job_id)
+                self.job_hyperparameters[job_id] = hyperparams
+                
+            # Log to experiment tracker file
+            log_entry = {
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'event': 'experiment_start',
+                'experiment_id': experiment_id,
+                'job_id': job_id,
+                'hyperparameters': hyperparams
+            }
+            
+            with open(self.experiment_log_file, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+                
+        except Exception as e:
+            logger.error(f"Error logging experiment start: {e}")
+
+    def _log_experiment_completion(self, experiment_id: str, job_id: str, success: bool, 
+                                 output_files: Optional[List[str]] = None):
+        """
+        Logs the completion of an experiment job.
+        """
+        try:
+            log_entry = {
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'event': 'experiment_completion',
+                'experiment_id': experiment_id,
+                'job_id': job_id,
+                'success': success,
+                'output_files': output_files or []
+            }
+            
+            with open(self.experiment_log_file, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+                
+        except Exception as e:
+            logger.error(f"Error logging experiment completion: {e}")
+
+    def get_experiment_status(self) -> Dict[str, Any]:
+        """
+        Returns the current status of all experiments.
+        """
+        with self.experiment_lock:
+            status = {
+                'active_experiments': len(self.experiment_groups),
+                'experiments': {}
+            }
+            
+            for exp_id, job_ids in self.experiment_groups.items():
+                status['experiments'][exp_id] = {
+                    'total_jobs': len(job_ids),
+                    'job_ids': job_ids
+                }
+                
+        return status
 
     def _calculate_job_hash(self, priority: int, script: str, conda_env: Optional[str], args: Optional[List[str]], allowed_gpus: Optional[List[int]], required_gpus: float) -> str:
         """
@@ -1035,189 +1163,267 @@ class GPUJobScheduler:
 
     def _run_with_screen(self, job_tuple: Tuple, assigned_gpu_ids: List[int], env: dict, start_time: datetime, mode_tag: str) -> Tuple[bool, Optional[str]]:
         """
-        Launches a job in a GNU Screen session and returns launch status and session name.
-        The job success/failure will be monitored by a separate monitoring thread.
-        
-        Args:
-            job_tuple: Job tuple containing all job information
-            assigned_gpu_ids: List of assigned GPU IDs
-            env: Environment variables including CUDA_VISIBLE_DEVICES
-            start_time: Job start time
-            mode_tag: Sanitized mode tag for logging
-            
-        Returns:
-            Tuple[bool, Optional[str]]: (launch_success, session_name)
+        Runs a job using GNU Screen and returns launch success and session name.
+        Creates organized output directories for experiments.
         """
-        (priority, job_id, script_path, conda_env, args_for_exec, _,
-         job_hash, required_gpus, llm_name, original_line) = job_tuple
-        
-        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
-        
+        priority, job_id, script_path, conda_env, args, allowed_gpus, job_hash, required_gpus, llm_name, original_line = job_tuple
+
         try:
-            # Create unique screen session name
-            session_name = f"gpujob_{cuda_arg_value}_{mode_tag}_{job_id[:8]}"
+            # Extract hyperparameters and generate experiment ID
+            hyperparams = self._extract_hyperparameters(args)
+            experiment_id = self._generate_experiment_id(script_path, hyperparams)
             
-            # Build the command for screen execution
+            # Create experiment-specific output directory
+            experiment_dir = self.experiment_results_dir / experiment_id
+            experiment_dir.mkdir(exist_ok=True)
+            
+            # Create job-specific output directory within experiment
+            job_output_dir = experiment_dir / f"job_{job_id}_{mode_tag}"
+            job_output_dir.mkdir(exist_ok=True)
+            
+            # Log experiment start
+            self._log_experiment_start(experiment_id, job_id, hyperparams)
+
+            gpu_id_str = ','.join(map(str, assigned_gpu_ids))
+            session_name = f"gpujob_{gpu_id_str}_{job_id}"
+
+            if not args:
+                args = []
+
+            args_copy = args.copy()
+
+            # Replace or add --cuda argument
+            cuda_arg_found = False
+            for i, arg in enumerate(args_copy):
+                if arg == '--cuda':
+                    if i + 1 < len(args_copy):
+                        args_copy[i + 1] = gpu_id_str
+                    else:
+                        args_copy.append(gpu_id_str)
+                    cuda_arg_found = True
+                    break
+
+            if not cuda_arg_found:
+                args_copy.extend(['--cuda', gpu_id_str])
+
+            # Add output directory to arguments if the script supports it
+            if '--output_dir' not in args_copy and '--output-dir' not in args_copy:
+                args_copy.extend(['--output_dir', str(job_output_dir)])
+
+            # Construct the full command
             if conda_env:
-                # Use conda run for environment activation
-                python_cmd = f"conda run -n {conda_env} python3 {script_path} {' '.join(args_for_exec)}"
+                cmd_parts = ['conda', 'run', '-n', conda_env, 'python', script_path] + args_copy
             else:
-                # Direct python execution
-                python_cmd = f"python3 {script_path} {' '.join(args_for_exec)}"
-            
-            # Create screen log file path
-            screen_log_file = SCREEN_LOG_DIR / f"{session_name}.log"
-            
-            # Use script command to preserve TTY behavior and log output
+                cmd_parts = ['python', script_path] + args_copy
+
+            cmd_str = shlex.join(cmd_parts)
+
+            # Create comprehensive log file path
+            log_file = job_output_dir / f"execution_{job_id}.log"
+
+            # Use script command for proper TTY handling and comprehensive logging
             screen_cmd = [
-                'screen', '-dmS', session_name,
-                'script', '-f', str(screen_log_file),
-                '-c', python_cmd
+                'screen', '-dmS', session_name, '-L', '-Logfile', str(log_file),
+                'script', '-f', str(log_file.with_suffix('.script')), '-c', cmd_str
             ]
-            
-            logger.info(f"GPU(s) {cuda_arg_value}: Starting screen session '{session_name}' for job ID {job_id}")
-            logger.debug(f"GPU(s) {cuda_arg_value}: Screen command: {' '.join(screen_cmd)}")
-            
-            # Launch the screen session
-            result = subprocess.run(
-                screen_cmd,
-                env=env,
-                capture_output=True,
-                text=True,
-                cwd=os.getcwd()
-            )
-            
+
+            logger.info(f"Starting job {job_id} in screen session '{session_name}' with command: {cmd_str}")
+            logger.info(f"Experiment: {experiment_id}, Output directory: {job_output_dir}")
+            logger.info(f"Log file: {log_file}")
+
+            # Start the screen session
+            result = subprocess.run(screen_cmd, env=env, capture_output=True, text=True)
+
             if result.returncode == 0:
-                logger.info(f"GPU(s) {cuda_arg_value}: Screen session '{session_name}' launched successfully for job ID {job_id}")
+                logger.info(f"Job {job_id} launched successfully in screen session '{session_name}'")
                 
-                # Start monitoring thread for this screen session
+                # Start monitoring thread
                 monitor_thread = threading.Thread(
                     target=self._monitor_screen,
                     args=(job_tuple, assigned_gpu_ids, session_name, start_time, mode_tag),
-                    name=f"ScreenMonitor-{session_name}",
+                    name=f"ScreenMonitor-{job_id}",
                     daemon=True
                 )
                 monitor_thread.start()
                 
                 return True, session_name
             else:
-                logger.error(f"GPU(s) {cuda_arg_value}: Failed to launch screen session '{session_name}' for job ID {job_id}. "
-                           f"Exit code: {result.returncode}, stderr: {result.stderr}")
+                logger.error(f"Failed to launch job {job_id} in screen: {result.stderr}")
+                # Log experiment failure
+                self._log_experiment_completion(experiment_id, job_id, False)
                 return False, None
-                
+
         except Exception as e:
-            logger.error(f"GPU(s) {cuda_arg_value}: Failed to launch screen session for job ID {job_id}: {e}", exc_info=True)
+            logger.error(f"Error running job {job_id} with screen: {e}")
+            # Try to log experiment failure if we have the experiment_id
+            try:
+                if 'experiment_id' in locals():
+                    self._log_experiment_completion(experiment_id, job_id, False)
+            except:
+                pass
             return False, None
 
     def _monitor_screen(self, job_tuple: Tuple, assigned_gpu_ids: List[int], session_name: str, start_time: datetime, mode_tag: str):
         """
-        Monitors a screen session until it completes and determines success/failure based on exit code.
-        
-        Args:
-            job_tuple: Job tuple containing all job information
-            assigned_gpu_ids: List of assigned GPU IDs
-            session_name: Name of the screen session
-            start_time: Job start time
-            mode_tag: Sanitized mode tag for logging
+        Monitors a screen session until completion and analyzes results.
+        Detects output files and tracks experiment completion.
         """
-        (priority, job_id, script_path, conda_env, args_for_exec, _,
-         job_hash, required_gpus, llm_name, original_line) = job_tuple
-        
-        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
-        job_name = Path(script_path).name
-        
-        logger.info(f"GPU(s) {cuda_arg_value}: Monitoring screen session '{session_name}' for job ID {job_id}")
-        
-        job_completed_successfully = False
-        release_reason = "screen session monitoring"
+        priority, job_id, script_path, conda_env, args, allowed_gpus, job_hash, required_gpus, llm_name, original_line = job_tuple
         
         try:
-            # Poll the screen session until it completes
+            # Extract experiment information
+            hyperparams = self._extract_hyperparameters(args)
+            experiment_id = self._generate_experiment_id(script_path, hyperparams)
+            job_output_dir = self.experiment_results_dir / experiment_id / f"job_{job_id}_{mode_tag}"
+            
+            logger.info(f"Monitoring screen session '{session_name}' for job {job_id}")
+            
+            # Monitor until session ends
             while True:
+                time.sleep(10)  # Check every 10 seconds
+                
                 if self.stop_event.is_set():
-                    logger.warning(f"GPU(s) {cuda_arg_value}: Stop event detected while monitoring job ID {job_id}. "
-                                 f"Screen session '{session_name}' may still be running.")
-                    release_reason = "scheduler shutdown during screen monitoring"
+                    logger.info(f"Stop event set, ending monitoring for job {job_id}")
                     break
                 
                 # Check if screen session still exists
-                try:
-                    result = subprocess.run(
-                        ['screen', '-S', session_name, '-Q', 'select'],
-                        capture_output=True,
-                        text=True,
-                        timeout=10
-                    )
+                active_sessions = list_screens()
+                if session_name not in active_sessions:
+                    logger.info(f"Screen session '{session_name}' has ended for job {job_id}")
+                    break
+            
+            # Session has ended, analyze results
+            success = False
+            reason = "Unknown"
+            output_files = []
+            
+            try:
+                # Look for log files in the job output directory
+                log_files = []
+                if job_output_dir.exists():
+                    log_files.extend(list(job_output_dir.glob("*.log")))
+                    log_files.extend(list(job_output_dir.glob("*.script")))
                     
-                    if result.returncode == 0:
-                        # Session still exists, wait and check again
-                        time.sleep(5)
-                        continue
+                    # Also look for common output files
+                    output_patterns = ["*.json", "*.csv", "*.pkl", "*.pt", "*.pth", "*.txt", "*.xlsx"]
+                    for pattern in output_patterns:
+                        output_files.extend([str(f) for f in job_output_dir.glob(pattern)])
+                
+                # Analyze the main execution log for success/failure
+                execution_log = job_output_dir / f"execution_{job_id}.log"
+                if execution_log.exists():
+                    log_content = execution_log.read_text()
+                    
+                    # Check for Python errors (same logic as before but more comprehensive)
+                    error_patterns = [
+                        r"Traceback \(most recent call last\):",
+                        r"^\s*\w*Error:",
+                        r"^\s*Exception:",
+                        r"CUDA out of memory",
+                        r"RuntimeError:",
+                        r"ValueError:",
+                        r"KeyError:",
+                        r"ImportError:",
+                        r"ModuleNotFoundError:",
+                        r"Process finished with exit code [1-9]",
+                        r"FAILED",
+                        r"ERROR:"
+                    ]
+                    
+                    has_errors = any(re.search(pattern, log_content, re.MULTILINE | re.IGNORECASE) 
+                                   for pattern in error_patterns)
+                    
+                    # Check for success indicators
+                    success_patterns = [
+                        r"Process finished with exit code 0",
+                        r"COMPLETED SUCCESSFULLY",
+                        r"Evaluation completed",
+                        r"Training completed",
+                        r"All experiments completed",
+                        r"Results saved to",
+                        r"SUCCESS"
+                    ]
+                    
+                    has_success = any(re.search(pattern, log_content, re.MULTILINE | re.IGNORECASE) 
+                                    for pattern in success_patterns)
+                    
+                    if has_errors:
+                        success = False
+                        reason = "Python error detected in logs"
+                    elif has_success:
+                        success = True
+                        reason = "Completed successfully"
+                    elif output_files:
+                        success = True
+                        reason = f"Generated {len(output_files)} output files"
                     else:
-                        # Session has ended, check exit status
-                        logger.info(f"GPU(s) {cuda_arg_value}: Screen session '{session_name}' has ended for job ID {job_id}")
+                        success = False
+                        reason = "No success indicators or output files found"
+                else:
+                    # Fallback to legacy log location
+                    legacy_log = SCREEN_LOG_DIR / f"{session_name}.log"
+                    if legacy_log.exists():
+                        log_content = legacy_log.read_text()
+                        has_errors = any(re.search(pattern, log_content, re.MULTILINE | re.IGNORECASE) 
+                                       for pattern in error_patterns)
+                        success = not has_errors
+                        reason = "Error detected in legacy log" if has_errors else "No errors in legacy log"
+                    else:
+                        success = False
+                        reason = "No log files found"
                         
-                        # Try to get the exit status from the screen session
-                        # Screen doesn't preserve exit codes directly, so we need to check the log or use other methods
-                        screen_log_file = SCREEN_LOG_DIR / f"{session_name}.log"
-                        
-                        # For now, assume success if session completed without error
-                        # In a more sophisticated implementation, you could parse the log file
-                        # or use a wrapper script that saves the exit code
-                        if screen_log_file.exists():
-                            try:
-                                # Check if log file contains any obvious error indicators
-                                with open(screen_log_file, 'r') as f:
-                                    log_content = f.read()
-                                
-                                # Simple heuristic: look for common Python error patterns
-                                error_patterns = [
-                                    'Traceback (most recent call last):',
-                                    'Error:',
-                                    'Exception:',
-                                    'CRITICAL:',
-                                    'FATAL:'
-                                ]
-                                
-                                has_errors = any(pattern in log_content for pattern in error_patterns)
-                                
-                                if has_errors:
-                                    logger.warning(f"GPU(s) {cuda_arg_value}: Job ID {job_id} appears to have failed based on log analysis")
-                                    job_completed_successfully = False
-                                    release_reason = "screen job failed (log analysis)"
-                                else:
-                                    logger.info(f"GPU(s) {cuda_arg_value}: Job ID {job_id} appears to have completed successfully")
-                                    job_completed_successfully = True
-                                    release_reason = "screen job completed successfully"
-                                    
-                            except Exception as log_error:
-                                logger.warning(f"GPU(s) {cuda_arg_value}: Could not analyze log file for job ID {job_id}: {log_error}")
-                                job_completed_successfully = False
-                                release_reason = "screen job completed (log analysis failed)"
-                        else:
-                            logger.warning(f"GPU(s) {cuda_arg_value}: No log file found for job ID {job_id}")
-                            job_completed_successfully = False
-                            release_reason = "screen job completed (no log file)"
-                        
-                        break
-                        
-                except subprocess.TimeoutExpired:
-                    logger.warning(f"GPU(s) {cuda_arg_value}: Timeout checking screen session status for job ID {job_id}")
-                    continue
-                except Exception as check_error:
-                    logger.error(f"GPU(s) {cuda_arg_value}: Error checking screen session status for job ID {job_id}: {check_error}")
-                    time.sleep(10)  # Wait longer on error
-                    continue
-                    
+            except Exception as e:
+                logger.error(f"Error analyzing results for job {job_id}: {e}")
+                success = False
+                reason = f"Error analyzing results: {e}"
+            
+            # Release GPU and update metrics
+            end_time = datetime.now(timezone.utc)
+            duration = (end_time - start_time).total_seconds()
+            
+            job_name = Path(script_path).stem
+            
+            # Log experiment completion with output files
+            self._log_experiment_completion(experiment_id, job_id, success, output_files)
+            
+            self._release_gpu(
+                assigned_gpu_ids, required_gpus, job_id, job_name, 
+                start_time, mode_tag, job_hash, original_line, success, reason
+            )
+            
+            # Log completion
+            self._log_job_completion(
+                job_id, job_hash, assigned_gpu_ids, start_time, end_time, 
+                duration, success, reason, original_line
+            )
+            
+            logger.info(f"Job {job_id} monitoring completed. Success: {success}, Reason: {reason}")
+            if output_files:
+                logger.info(f"Output files generated: {output_files}")
+                
         except Exception as e:
-            logger.error(f"GPU(s) {cuda_arg_value}: Error monitoring screen session '{session_name}' for job ID {job_id}: {e}", exc_info=True)
-            job_completed_successfully = False
-            release_reason = f"screen monitoring error: {e}"
-        
-        finally:
-            # Release GPU allocation
-            self._release_gpu(assigned_gpu_ids, required_gpus, job_id, job_name, start_time, mode_tag, 
-                            job_hash, original_line, success=job_completed_successfully, reason=release_reason)
+            logger.error(f"Error in screen monitoring for job {job_id}: {e}", exc_info=True)
+            # Ensure GPU is released even on error
+            try:
+                end_time = datetime.now(timezone.utc)
+                duration = (end_time - start_time).total_seconds()
+                job_name = Path(script_path).stem
+                
+                self._release_gpu(
+                    assigned_gpu_ids, required_gpus, job_id, job_name,
+                    start_time, mode_tag, job_hash, original_line, False, f"Monitoring error: {e}"
+                )
+                
+                # Try to log experiment failure
+                try:
+                    hyperparams = self._extract_hyperparameters(args)
+                    experiment_id = self._generate_experiment_id(script_path, hyperparams)
+                    self._log_experiment_completion(experiment_id, job_id, False)
+                except:
+                    pass
+                    
+            except Exception as cleanup_error:
+                logger.error(f"Error in cleanup for job {job_id}: {cleanup_error}")
 
     def _log_job_start(self, job_id: str, job_hash: str, assigned_gpu_ids: List[int], 
                       start_time: datetime, original_line: Optional[str], screen_session_name: Optional[str] = None):
@@ -1692,33 +1898,201 @@ class GPUJobScheduler:
             }
 
     def get_performance_metrics(self) -> Dict[str, Any]:
-        """Returns current performance metrics for monitoring."""
+        """
+        Returns current performance metrics with additional experiment statistics.
+        """
+        with self.metrics_lock:
+            metrics = self.performance_metrics.copy()
+            
+        # Calculate additional metrics
+        current_time = time.time()
+        uptime = current_time - metrics['start_time']
+        metrics['uptime_hours'] = uptime / 3600
+        
+        if metrics['jobs_processed'] > 0:
+            metrics['success_rate'] = metrics['jobs_successful'] / metrics['jobs_processed']
+            metrics['failure_rate'] = metrics['jobs_failed'] / metrics['jobs_processed']
+        else:
+            metrics['success_rate'] = 0.0
+            metrics['failure_rate'] = 0.0
+            
+        # Add experiment statistics
+        with self.experiment_lock:
+            metrics['active_experiments'] = len(self.experiment_groups)
+            total_experiment_jobs = sum(len(jobs) for jobs in self.experiment_groups.values())
+            metrics['total_experiment_jobs'] = total_experiment_jobs
+            
+        return metrics
+
+    def generate_parameter_sweep_jobs(self, script_path: str, conda_env: str,
+                                    parameter_grid: Dict[str, List[str]], 
+                                    base_args: Optional[List[str]] = None,
+                                    priority: int = 5) -> List[str]:
+        """
+        Generates job lines for a parameter sweep experiment.
+        
+        Args:
+            script_path: Path to the experiment script
+            conda_env: Conda environment name
+            parameter_grid: Dictionary of parameter names to lists of values
+            base_args: Base arguments to include in all jobs
+            priority: Job priority
+            
+        Returns:
+            List of job line strings ready for the jobs file
+        """
+        import itertools
+        
+        if base_args is None:
+            base_args = []
+            
+        job_lines = []
+        
+        # Generate all combinations of parameters
+        param_names = list(parameter_grid.keys())
+        param_values = list(parameter_grid.values())
+        
+        for combination in itertools.product(*param_values):
+            # Build arguments for this combination
+            args = base_args.copy()
+            
+            # Add parameter values
+            for param_name, param_value in zip(param_names, combination):
+                args.extend([param_name, str(param_value)])
+            
+            # Create job line
+            args_str = ' '.join(args)
+            job_line = f"{priority},{script_path},{conda_env},{args_str}"
+            job_lines.append(job_line)
+            
+        logger.info(f"Generated {len(job_lines)} jobs for parameter sweep")
+        return job_lines
+
+    def generate_model_comparison_jobs(self, script_path: str, conda_env: str,
+                                     models: List[str], datasets: List[str],
+                                     modes: List[str], base_args: Optional[List[str]] = None,
+                                     priorities: Optional[Dict[str, int]] = None) -> List[str]:
+        """
+        Generates jobs for comparing multiple models across datasets and modes.
+        Common pattern in ML research.
+        
+        Args:
+            script_path: Path to the experiment script
+            conda_env: Conda environment name
+            models: List of model names
+            datasets: List of dataset names  
+            modes: List of evaluation modes
+            base_args: Base arguments to include in all jobs
+            priorities: Optional priority mapping for models
+            
+        Returns:
+            List of job line strings
+        """
+        if base_args is None:
+            base_args = []
+        if priorities is None:
+            priorities = {}
+            
+        job_lines = []
+        
+        for model in models:
+            for dataset in datasets:
+                for mode in modes:
+                    args = base_args.copy()
+                    args.extend(['--llm', model])
+                    args.extend(['--dataset', dataset])
+                    args.extend(['--mode', mode])
+                    args.extend(['--cuda', '0'])  # Will be replaced by scheduler
+                    
+                    # Get priority for this model
+                    priority = priorities.get(model, 5)
+                    
+                    args_str = ' '.join(args)
+                    job_line = f"{priority},{script_path},{conda_env},{args_str}"
+                    job_lines.append(job_line)
+                    
+        logger.info(f"Generated {len(job_lines)} jobs for model comparison")
+        return job_lines
+
+    def save_jobs_to_file(self, job_lines: List[str], filename: str, 
+                         append: bool = False, add_comments: bool = True) -> bool:
+        """
+        Saves generated job lines to a file with optional organization.
+        
+        Args:
+            job_lines: List of job line strings
+            filename: Output filename
+            append: Whether to append to existing file
+            add_comments: Whether to add organizational comments
+            
+        Returns:
+            True if successful, False otherwise
+        """
         try:
-            with self.metrics_lock:
-                current_time = time.time()
-                uptime_hours = (current_time - self.performance_metrics['start_time']) / 3600.0
+            mode = 'a' if append else 'w'
+            with open(filename, mode) as f:
+                if add_comments:
+                    f.write(f"\n# Generated jobs - {datetime.now().isoformat()}\n")
+                    f.write(f"# Total jobs: {len(job_lines)}\n\n")
                 
-                # Calculate derived metrics
-                total_jobs = self.performance_metrics['jobs_processed']
-                success_rate = (self.performance_metrics['jobs_successful'] / total_jobs * 100) if total_jobs > 0 else 0
-                gpu_utilization = self.performance_metrics['total_gpu_hours_allocated'] / (self.num_gpus * uptime_hours * 100) if uptime_hours > 0 else 0
-                
-                return {
-                    'uptime_hours': round(uptime_hours, 2),
-                    'jobs_processed': self.performance_metrics['jobs_processed'],
-                    'jobs_successful': self.performance_metrics['jobs_successful'],
-                    'jobs_failed': self.performance_metrics['jobs_failed'],
-                    'success_rate_percent': round(success_rate, 1),
-                    'total_gpu_hours_allocated': round(self.performance_metrics['total_gpu_hours_allocated'], 2),
-                    'gpu_utilization_percent': round(gpu_utilization, 1),
-                    'average_queue_wait_time_seconds': round(self.performance_metrics['average_queue_wait_time'], 2),
-                    'peak_queue_size': self.performance_metrics['peak_queue_size'],
-                    'assignment_failures': self.performance_metrics['assignment_failures'],
-                    'current_queue_size': self.job_queue.qsize()
-                }
+                for job_line in job_lines:
+                    f.write(job_line + '\n')
+                    
+                if add_comments:
+                    f.write("\n# End generated jobs\n\n")
+                    
+            logger.info(f"Saved {len(job_lines)} jobs to {filename}")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error calculating performance metrics: {e}")
-            return {'error': str(e)}
+            logger.error(f"Error saving jobs to {filename}: {e}")
+            return False
+
+    def estimate_job_duration(self, script_path: str, hyperparams: Dict[str, str]) -> Optional[float]:
+        """
+        Estimates job duration based on historical data and hyperparameters.
+        Useful for scheduling optimization.
+        
+        Args:
+            script_path: Path to the script
+            hyperparams: Job hyperparameters
+            
+        Returns:
+            Estimated duration in seconds, or None if no estimate available
+        """
+        try:
+            # Load historical experiment data
+            if not self.experiment_log_file.exists():
+                return None
+                
+            script_name = Path(script_path).stem
+            durations = []
+            
+            with open(self.experiment_log_file, 'r') as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        if (entry.get('event') == 'experiment_completion' and 
+                            entry.get('success') and
+                            script_name in entry.get('experiment_id', '')):
+                            
+                            # Try to find matching completion entry with duration
+                            # This is a simplified approach - in practice you'd want
+                            # more sophisticated matching based on hyperparameters
+                            durations.append(3600)  # Default 1 hour estimate
+                            
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+                        
+            if durations:
+                # Return median duration as estimate
+                durations.sort()
+                return durations[len(durations) // 2]
+                
+        except Exception as e:
+            logger.warning(f"Error estimating duration for {script_path}: {e}")
+            
+        return None
 
     def _update_performance_metrics(self, metric_type: str, **kwargs):
         """Internal method to update performance metrics safely."""

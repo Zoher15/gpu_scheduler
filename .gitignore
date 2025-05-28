@@ -89,3 +89,15 @@ Thumbs.db
 # Performance and monitoring files
 metrics.json
 health.json
+
+# Experiment tracking and results
+experiment_results/
+experiment_tracker.log
+generated_jobs.txt
+*_jobs.txt
+*.jobs
+
+# Example and temporary files  
+example_*.json
+temp_*.py
+test_*.py
