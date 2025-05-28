@@ -1,3 +1,4 @@
+# ```python
 import os
 import time
 import subprocess
@@ -7,7 +8,7 @@ import GPUtil
 import logging
 import shlex
 import json
-from datetime import datetime
+from datetime import datetime, timezone # <<< MODIFIED >>> Add timezone
 import re
 import argparse
 import uuid # Import UUID library
@@ -20,6 +21,8 @@ import math # For ceil
 DEFAULT_JOBS_FILE = "jobs.txt"
 DEFAULT_LLM_CONFIG_FILE = "llm_config.json" # Default LLM config file name
 DEFAULT_STATE_FILE = "gpu_scheduler_state.json" # Default state file name
+RUNNING_JOBS_LOG_FILE = "running_jobs.log" # <<< ADDED >>> Log file for running jobs
+DONE_JOBS_LOG_FILE = "done_jobs.log"       # <<< ADDED >>> Log file for completed jobs
 FILE_MONITOR_INTERVAL_S = 30 # Check jobs file every 30 seconds
 STATE_CHECK_INTERVAL_S = 20 # Check state file for external changes every 20 seconds
 # Directory for screen output logs (raw output including escape codes)
@@ -27,6 +30,9 @@ SCREEN_LOG_DIR = Path("/tmp/gpu_scheduler_logs")
 MAX_ASSIGNMENT_ATTEMPTS = 5 # Max times a worker tries to assign a job before requeuing
 ASSIGNMENT_RETRY_WAIT_S = 5 # Base wait time between assignment attempts
 GPU_ALLOCATION_PRECISION = 0.01 # For float comparisons
+MAX_MANAGED_HASHES = 10000 # Maximum number of job hashes to keep in memory
+CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5 # Number of consecutive failures before triggering circuit breaker
+CIRCUIT_BREAKER_TIMEOUT = 300 # Circuit breaker timeout in seconds (5 minutes)
 
 # Setup logging (ensure threadName is included)
 logging.basicConfig(
@@ -111,6 +117,7 @@ class GPUJobScheduler:
     Automatically modifies '--cuda <gpu_id>' to pass assigned GPU IDs.
     Periodically reloads paused GPU state from the state file to reflect external changes.
     Uses `script` command for screen logging to preserve TTY behavior.
+    Logs running and completed jobs to separate files. # <<< MODIFIED >>>
     """
     def __init__(self,
                  num_gpus: int = 8,
@@ -155,12 +162,32 @@ class GPUJobScheduler:
         self.gpu_memory_threshold: float = gpu_memory_threshold
         self.gpu_load_threshold: float = gpu_load_threshold
         self.lock: threading.Lock = threading.Lock() # Lock for shared resources (queue, status, hashes, paused_gpus)
+        self.job_log_lock: threading.Lock = threading.Lock() # <<< ADDED >>> Lock for writing to running/done job logs
         self.stop_event: threading.Event = threading.Event() # Event to signal threads to stop
         self.worker_threads: List[threading.Thread] = [] # List of worker threads
         self.paused_gpus: set[int] = set() # Set of GPU IDs that are manually paused (IN MEMORY)
         self.state_file: Path = Path(state_file_path) # File to persist/read GPU status/paused state
         self.max_assignment_attempts = max_assignment_attempts
         self.assignment_retry_wait = assignment_retry_wait
+
+        # --- Circuit Breaker for Repeated Failures ---
+        self.circuit_breaker_failures = 0  # Count of consecutive failures
+        self.circuit_breaker_timeout_until = 0  # Timestamp when circuit breaker expires
+        # ------------------------------------------------
+
+        # --- Performance Monitoring ---
+        self.performance_metrics = {
+            'jobs_processed': 0,
+            'jobs_successful': 0,
+            'jobs_failed': 0,
+            'total_gpu_hours_allocated': 0.0,
+            'average_queue_wait_time': 0.0,
+            'peak_queue_size': 0,
+            'assignment_failures': 0,
+            'start_time': time.time()
+        }
+        self.metrics_lock = threading.Lock()
+        # --------------------------------
 
         # --- LLM Configuration ---
         self.llm_config_path = Path(llm_config_path)
@@ -194,26 +221,60 @@ class GPUJobScheduler:
         try:
             with open(self.llm_config_path, 'r') as f:
                 config = json.load(f)
-            self.default_llm_requirement = float(config.get("default_requirement", 1.0))
-            self.llm_requirements = {k: float(v) for k, v in config.get("models", {}).items()}
-            logger.info(f"LLM config loaded. Default: {self.default_llm_requirement}, Models: {self.llm_requirements}")
-            if not self.llm_requirements:
-                 logger.warning("LLM config file loaded, but 'models' section is empty or missing.")
+            
+            # Validate configuration structure
+            if not isinstance(config, dict):
+                raise ValueError("Configuration must be a JSON object")
+            
+            # Load and validate default requirement
+            if 'default_requirement' in config:
+                default_req = float(config['default_requirement'])
+                if default_req <= 0:
+                    raise ValueError(f"default_requirement must be positive, got: {default_req}")
+                self.default_llm_requirement = default_req
+                logger.info(f"Loaded default GPU requirement: {self.default_llm_requirement}")
+
+            # Load and validate model requirements
+            models = config.get('models', {})
+            if not isinstance(models, dict):
+                raise ValueError("'models' must be a JSON object")
+            
+            invalid_models = []
+            for llm_name, requirement in models.items():
+                try:
+                    req_float = float(requirement)
+                    if req_float <= 0:
+                        invalid_models.append(f"{llm_name}: requirement must be positive, got {req_float}")
+                        continue
+                    if req_float > 8:  # Reasonable upper bound
+                        logger.warning(f"LLM '{llm_name}' has unusually high GPU requirement: {req_float}")
+                    self.llm_requirements[llm_name] = req_float
+                except (ValueError, TypeError) as e:
+                    invalid_models.append(f"{llm_name}: invalid requirement '{requirement}' - {e}")
+            
+            if invalid_models:
+                logger.error(f"Invalid LLM configurations found:\n" + "\n".join(f"  - {error}" for error in invalid_models))
+            
+            logger.info(f"Successfully loaded {len(self.llm_requirements)} LLM configurations.")
+            logger.debug(f"LLM requirements: {self.llm_requirements}")
+            
         except json.JSONDecodeError as e:
-            logger.error(f"Error decoding JSON from LLM config file {self.llm_config_path}: {e}. Using defaults.")
-        except (ValueError, TypeError) as e:
-             logger.error(f"Error parsing values in LLM config file {self.llm_config_path} (requirements must be numbers): {e}. Using defaults.")
+            logger.error(f"Invalid JSON in LLM config file '{self.llm_config_path}': {e}")
         except Exception as e:
-            logger.error(f"Failed to load or parse LLM config file {self.llm_config_path}: {e}. Using defaults.", exc_info=True)
+            logger.error(f"Failed to load LLM config from '{self.llm_config_path}': {e}")
+            logger.info(f"Using default requirement ({self.default_llm_requirement}) for all LLMs.")
 
     def get_llm_gpu_requirement(self, llm_name: Optional[str]) -> float:
-        """Gets the GPU requirement for a given LLM name from the loaded config."""
+        """Gets GPU requirement for a given LLM name."""
         if llm_name and llm_name in self.llm_requirements:
             return self.llm_requirements[llm_name]
+        
+        if llm_name:
+            logger.warning(f"LLM '{llm_name}' not found in configuration. Using default requirement: {self.default_llm_requirement}")
         else:
-            if llm_name:
-                 logger.debug(f"LLM '{llm_name}' not found in config. Using default requirement: {self.default_llm_requirement}")
-            return self.default_llm_requirement
+            logger.debug(f"No LLM specified. Using default requirement: {self.default_llm_requirement}")
+        
+        return self.default_llm_requirement
 
     def _calculate_job_hash(self, priority: int, script: str, conda_env: Optional[str], args: Optional[List[str]], allowed_gpus: Optional[List[int]], required_gpus: float) -> str:
         """
@@ -293,13 +354,26 @@ class GPUJobScheduler:
             temp_state_file = self.state_file.with_suffix(f".tmp_{os.getpid()}_{threading.get_ident()}") # Add thread id for uniqueness
             with open(temp_state_file, 'w') as f:
                 json.dump(state, f, indent=4)
+            
+            # Validate the written data before committing
+            try:
+                with open(temp_state_file, 'r') as f:
+                    validation_state = json.load(f)
+                    # Basic validation checks
+                    if (len(validation_state.get('gpu_status', [])) != len(self.gpu_status) or
+                        set(validation_state.get('paused_gpus', [])) != self.paused_gpus):
+                        raise ValueError("State validation failed: written data doesn't match memory state")
+            except Exception as validation_error:
+                temp_state_file.unlink()  # Clean up invalid temp file
+                raise ValueError(f"State file validation failed: {validation_error}")
+            
             os.replace(temp_state_file, self.state_file) # Atomic rename/replace
             logger.debug(f"Scheduler state saved successfully to {self.state_file}.")
         except Exception as e:
             # Critical error if state cannot be saved after allocation
             logger.critical(f"CRITICAL FAILURE: Failed to save state to '{self.state_file}': {e}", exc_info=True)
             # Clean up temp file on error
-            if temp_state_file.exists():
+            if 'temp_state_file' in locals() and temp_state_file.exists():
                 try:
                     temp_state_file.unlink()
                 except OSError:
@@ -531,6 +605,18 @@ class GPUJobScheduler:
         logger.info(f"Worker started.")
 
         while not self.stop_event.is_set():
+            # --- Circuit Breaker Check ---
+            current_time = time.time()
+            with self.lock:
+                if current_time < self.circuit_breaker_timeout_until:
+                    # Circuit breaker is active, wait before processing
+                    remaining_timeout = self.circuit_breaker_timeout_until - current_time
+                    logger.debug(f"Circuit breaker active, waiting {remaining_timeout:.1f}s before processing jobs")
+                    if self.stop_event.wait(timeout=min(remaining_timeout, 5.0)):
+                        break  # Exit if stop event during circuit breaker wait
+                    continue  # Skip to next iteration to recheck timeout
+            # --------------------------------
+            
             job_tuple = None
             job_id = None
             job_hash = None
@@ -627,7 +713,7 @@ class GPUJobScheduler:
                                     else:
                                          logger.debug(f"GPU Check [{gpu_id}] failed real-time check for fractional job {job_id}.")
                                 else:
-                                     logger.debug(f"GPU Check [{gpu_id}] insufficient capacity for job ID {job_id} (Req: {required_gpus:.2f}, CurrentAlloc: {current_allocation:.2f})")
+                                    logger.debug(f"GPU Check [{gpu_id}] insufficient capacity for job ID {job_id} (Req: {required_gpus:.2f}, CurrentAlloc: {current_allocation:.2f})")
 
                             if found_gpu:
                                 assignment_successful_this_attempt = True
@@ -718,11 +804,9 @@ class GPUJobScheduler:
                                 logger.info(f"Stop event received while waiting to assign job {job_id}. Re-queueing.")
                                 try:
                                     self.job_queue.put(job_tuple)
-                                    logger.info(f"Job ID {job_id} re-queued due to worker stop.")
                                 except Exception as e:
-                                    logger.critical(f"CRITICAL: Failed to re-queue job ID {job_id} during stop: {e}. Job may be lost.")
-                                break # Exit assignment attempts loop
-                        # else: Loop will terminate naturally after max attempts failed
+                                    logger.critical(f"CRITICAL: Failed to re-queue job ID {job_id} after max attempts: {e}. Job may be lost.")
+                            # If stop_event caused the loop break, the job was already re-queued inside the loop
 
                 # --- End of assignment attempt loop ---
 
@@ -733,6 +817,11 @@ class GPUJobScheduler:
                     mode_tag = _extract_and_sanitize_key_arg(run_args)
                     # **** Log the assignment ****
                     logger.info(f"Assigning job ID {run_job_id} (LLM: {run_llm_name}, Req: {run_req_gpus:.2f}) to GPU(s) {assigned_gpu_ids}")
+
+                    # Reset circuit breaker on successful assignment
+                    with self.lock:
+                        self.circuit_breaker_failures = 0
+                        self.circuit_breaker_timeout_until = 0
 
                     # Start a new thread to run the job
                     job_runner_thread = threading.Thread(
@@ -746,6 +835,14 @@ class GPUJobScheduler:
                     # This block is reached if stop_event interrupted the wait OR max_attempts was reached without success
                     if not self.stop_event.is_set(): # Only log re-queue if not shutting down
                         logger.warning(f"Exceeded max attempts ({self.max_assignment_attempts}) or failed to assign GPU(s) for job ID {job_id} (Req: {required_gpus:.2f}). Re-queueing job.")
+                        
+                        # Circuit breaker logic
+                        with self.lock:
+                            self.circuit_breaker_failures += 1
+                            if self.circuit_breaker_failures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD:
+                                self.circuit_breaker_timeout_until = time.time() + CIRCUIT_BREAKER_TIMEOUT
+                                logger.error(f"Circuit breaker triggered after {self.circuit_breaker_failures} consecutive failures. Backing off for {CIRCUIT_BREAKER_TIMEOUT}s")
+                        
                         try:
                             self.job_queue.put(job_tuple)
                         except Exception as e:
@@ -780,7 +877,6 @@ class GPUJobScheduler:
 
         logger.info(f"Worker finished.")
 
-
     # --- Job Execution ---
     def _run_job(self, job_tuple: Tuple, assigned_gpu_ids: List[int]):
             """
@@ -788,6 +884,7 @@ class GPUJobScheduler:
             and execute a single job on its assigned GPU(s).
             Modifies '--cuda' argument to pass assigned IDs.
             Ensures the GPU allocation is released afterwards. Logs original line.
+            Logs job start to running_jobs.log. # <<< MODIFIED >>>
 
             Args:
                 job_tuple: The full job tuple including requirements and original_line.
@@ -797,7 +894,7 @@ class GPUJobScheduler:
             (priority, job_id, script_path, conda_env, original_args, _,
              job_hash, required_gpus, llm_name, original_line) = job_tuple
             job_name = Path(script_path).name
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc) # <<< MODIFIED >>> Use timezone-aware UTC time
             mode_tag = _extract_and_sanitize_key_arg(original_args) # Extract mode from original args
 
             if not assigned_gpu_ids:
@@ -814,6 +911,7 @@ class GPUJobScheduler:
 
             job_completed_successfully = False
             release_reason = "unknown"
+            screen_session_name = None # <<< ADDED >>> Store screen session name if used
 
             # --- Log Job Start with Original Line ---
             start_log_msg = f"GPU(s) {cuda_arg_value}: Preparing job ID {job_id} (LLM: {llm_name}, Req: {required_gpus:.2f})"
@@ -832,9 +930,14 @@ class GPUJobScheduler:
                 # Pass the full original tuple to execution methods so they have original_line
                 exec_job_tuple = job_tuple[:4] + (args_for_exec,) + job_tuple[5:]
 
+                # <<< ADDED >>> Log job start to running_jobs.log *before* execution starts
+                # This happens regardless of screen or direct mode
+                self._log_job_start(job_id, job_hash, assigned_gpu_ids, start_time, original_line, screen_session_name=None) # Screen name logged later if used
+
                 if self.use_screen:
                     # --- Screen Mode ---
-                    launched_ok = self._run_with_screen(exec_job_tuple, assigned_gpu_ids, env, start_time, mode_tag)
+                    # _run_with_screen now returns tuple: (launched_ok, session_name)
+                    launched_ok, screen_session_name = self._run_with_screen(exec_job_tuple, assigned_gpu_ids, env, start_time, mode_tag)
                     if not launched_ok:
                         logger.error(f"GPU(s) {cuda_arg_value}: Screen setup failed for job ID {job_id} (Hash: {job_hash}).")
                         job_completed_successfully = False
@@ -842,6 +945,9 @@ class GPUJobScheduler:
                         # Release GPU immediately if screen launch failed
                         self._release_gpu(assigned_gpu_ids, required_gpus, job_id, job_name, start_time, mode_tag, job_hash, original_line, success=job_completed_successfully, reason=release_reason)
                     # If launch OK, _monitor_screen will call _release_gpu later
+                    # <<< ADDED >>> Log start again with screen name if successful
+                    elif screen_session_name:
+                         self._log_job_start(job_id, job_hash, assigned_gpu_ids, start_time, original_line, screen_session_name)
                     return # Exit _run_job thread, monitor thread takes over
 
                 else:
@@ -869,598 +975,479 @@ class GPUJobScheduler:
                 else:
                     logger.warning(f"GPU(s) {cuda_arg_value}: Error during _run_job setup for job ID {job_id} (Hash: {job_hash}), but allocation seemed already released.")
 
-
-    # --- Job Release (REVISED for Retry Logic) ---
-    def _release_gpu(self, assigned_gpu_ids: List[int], required_gpus: float,
-                     job_id: str, job_name: str, start_time: datetime, mode_tag: str,
-                     job_hash: Optional[str], original_line: Optional[str], # Added original_line
-                     success: bool, reason: str="completion"):
+    def _run_directly(self, job_tuple: Tuple, assigned_gpu_ids: List[int], env: dict, start_time: datetime, mode_tag: str) -> bool:
         """
-        Helper method to mark GPU allocation as released IN MEMORY and save state.
-        Logs original line on completion/failure.
-        If job failed and originated from file (has hash), removes hash to allow retry.
-        """
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-        log_prefix = f"GPU(s) {gpu_ids_str}: Job ID {job_id} (Hash: {job_hash}, Name: '{job_name}', Mode: {mode_tag})"
-
-        # --- Log Completion with Original Line ---
-        completion_log_msg = f"{log_prefix} finished due to {reason} in {duration:.2f} seconds. Success: {success}. Releasing allocation (Req: {required_gpus:.2f})."
-        if original_line:
-            completion_log_msg += f" [Original Line: {original_line.strip()}]"
-        if success:
-             logger.info(completion_log_msg)
-        else:
-             logger.warning(completion_log_msg) # Log failures as warning
-        # -----------------------------------------
-
-        save_needed = False
-        with self.lock: # Ensure thread safety for modifying status and hashes
-            # --- Release Allocation ---
-            allocation_to_release = 0.0
-            if required_gpus <= (1.0 + GPU_ALLOCATION_PRECISION):
-                allocation_to_release = required_gpus
-            else:
-                allocation_to_release = 1.0 # Release 1.0 from each assigned GPU for multi-GPU jobs
-
-            for gpu_id in assigned_gpu_ids:
-                if 0 <= gpu_id < len(self.gpu_status):
-                    if self.gpu_status[gpu_id] > GPU_ALLOCATION_PRECISION: # Only release if allocated
-                        old_allocation = self.gpu_status[gpu_id]
-                        new_allocation = max(0.0, old_allocation - allocation_to_release)
-                        self.gpu_status[gpu_id] = new_allocation
-                        logger.debug(f"Releasing GPU {gpu_id}: Old Alloc={old_allocation:.2f}, Release={allocation_to_release:.2f}, New Alloc={new_allocation:.2f}")
-                        save_needed = True # Mark state save as needed
-                    else:
-                        logger.debug(f"Skipping release for GPU {gpu_id}: Already has allocation {self.gpu_status[gpu_id]:.2f}")
-                else:
-                    logger.error(f"Attempted to release allocation for invalid GPU ID {gpu_id}.")
-            # -------------------------
-
-            # --- Manage Job Hash for Retries ---
-            if job_hash:
-                if not success:
-                    # If job failed AND it came from the file (has a hash), remove the hash
-                    # to allow the file monitor to re-add it for a retry.
-                    if job_hash in self.managed_job_hashes:
-                         self.managed_job_hashes.remove(job_hash)
-                         self.hash_to_job_id.pop(job_hash, None) # Remove mapping too
-                         logger.info(f"{log_prefix}: Removed hash '{job_hash}' from managed set due to failure. Job eligible for retry on next monitor scan.")
-                         # No state save needed just for hash removal
-                    else:
-                         # This might happen if the job was manually added or state cleared unexpectedly
-                         logger.warning(f"{log_prefix}: Failed job hash '{job_hash}' not found in managed set during release.")
-                else:
-                    # Job succeeded, keep hash in managed set to prevent re-run
-                    logger.debug(f"{log_prefix}: Hash '{job_hash}' remains in managed set after successful job completion.")
-            # --- End Hash Management ---
-
-            # --- Save State if Allocation Changed ---
-            if save_needed:
-                try:
-                    self.save_state() # Save updated GPU allocation status
-                except Exception as e:
-                    # Log critical error, but continue - state might be inconsistent
-                    logger.critical(f"CRITICAL FAILURE: Failed to save state during GPU release for job {job_id}: {e}", exc_info=True)
-            # --------------------------------------
-
-
-    # --- Run with Screen (MODIFIED TO USE `script` command) ---
-    def _run_with_screen(self, job_tuple: Tuple, assigned_gpu_ids: List[int], env: Dict, start_time: datetime, mode_tag: str) -> bool:
-        """
-        Sets up and launches a job inside a GNU Screen session on assigned GPUs.
-        Uses the `script` command to capture output to a log file while preserving
-        pseudo-terminal behavior for the executed command (helps with progress bars).
-        Args include modified '--cuda' and full job details including original_line.
-
+        Executes a job directly (non-screen mode) and returns whether it completed successfully.
+        
+        Args:
+            job_tuple: Job tuple containing all job information
+            assigned_gpu_ids: List of assigned GPU IDs
+            env: Environment variables including CUDA_VISIBLE_DEVICES
+            start_time: Job start time
+            mode_tag: Sanitized mode tag for logging
+            
         Returns:
-            bool: True if the screen session was launched successfully, False otherwise.
+            bool: True if job completed successfully (exit code 0), False otherwise
         """
-        # Unpack the full tuple including original_line
-        (priority, job_id, script_path, conda_env, args_with_cuda, _,
+        (priority, job_id, script_path, conda_env, args_for_exec, _,
          job_hash, required_gpus, llm_name, original_line) = job_tuple
-        script_p = Path(script_path)
-        script_basename = script_p.name
-        gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-
-        session_name = f"gpujob_{gpu_ids_str}_{mode_tag}_{job_id[:6]}_{start_time.strftime('%H%M%S')}"
-        session_name = session_name[:60] # Limit length
-
-        # --- File for `script` command output ---
-        # Note: This log will contain raw terminal escape codes.
-        job_output_log = SCREEN_LOG_DIR / f"output_{session_name}.typescript" # Use .typescript extension convention
-        job_output_log.unlink(missing_ok=True) # Clear previous log if exists
-        # -----------------------------
-
-        temp_script_path = None
+        
+        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+        
         try:
-            # --- Create temporary wrapper script ---
-            script_content = [
-                "#!/bin/bash",
-                "# --- Auto-generated by GPUJobScheduler ---",
-                f"# Job ID: {job_id}", f"# Hash: {job_hash}", f"# LLM: {llm_name}", f"# GPUs Req: {required_gpus:.2f}",
-                f"# Screen session: {session_name}",
-                f"# Script: {script_path}", f"# Assigned GPU(s): {gpu_ids_str}", f"# Started: {start_time.strftime('%Y-%m-%d %H:%M:%S')}",
-                f"# Original Line: {original_line.strip() if original_line else 'N/A'}", # Add original line comment
-                f"# Job Output Log (typescript): {job_output_log}",
-                "echo \"--- Starting Job Execution Script ---\"",
-                "echo \"Timestamp: $(date)\"",
-                "echo \"Running as user: $(whoami)\"",
-                "echo \"Current directory: $(pwd)\"",
-                f"echo \"Assigned CUDA_VISIBLE_DEVICES: {env.get('CUDA_VISIBLE_DEVICES', 'Not Set')}\"", # Log assigned devices
-                "set -e", # Exit on error (mostly for setup part)
-                # pipefail might not be needed if not piping the main command anymore
-                # "set -o pipefail"
-            ]
-
-            # --- Conda activation logic (Robust path finding - same as before) ---
+            # Build the command for direct execution
             if conda_env:
-                conda_base_cmd = f"source $(conda info --base)/etc/profile.d/conda.sh" # Default guess
-                conda_path_found = False
-                conda_prefix = os.environ.get('CONDA_PREFIX')
-                potential_conda_sh = None
-                if conda_prefix: # Check relative to current env
-                    conda_base_dir = Path(conda_prefix).parent.parent
-                    potential_conda_sh = conda_base_dir / "etc/profile.d/conda.sh"
-                    if potential_conda_sh.exists():
-                        conda_base_cmd = f"source {shlex.quote(str(potential_conda_sh))}"
-                        conda_path_found = True
-                if not conda_path_found: # Check common default locations
-                    home_dir = os.environ.get('HOME', '/root') # Get home directory
-                    for default_path in [f"{home_dir}/anaconda3/etc/profile.d/conda.sh",
-                                         f"{home_dir}/miniconda3/etc/profile.d/conda.sh",
-                                         "/opt/conda/etc/profile.d/conda.sh"]:
-                        potential_conda_sh = Path(default_path)
-                        if potential_conda_sh.exists():
-                            conda_base_cmd = f"source {shlex.quote(str(potential_conda_sh))}"
-                            conda_path_found = True
-                            break
-                # if not conda_path_found: # Logged by scheduler already
-                    # logger.warning(...)
-
-                script_content.extend([
-                    f"echo 'Attempting to initialize conda using: {conda_base_cmd}'",
-                    conda_base_cmd,
-                    "conda_init_exit_code=$?",
-                    "if [ $conda_init_exit_code -ne 0 ]; then echo \"WARNING: Conda init command exited with code $conda_init_exit_code (may be benign)\" >&2; fi",
-                    f"echo 'Activating conda environment: {conda_env}'",
-                    f"conda activate {shlex.quote(conda_env)}",
-                    "conda_activate_exit_code=$?",
-                    "if [ $conda_activate_exit_code -ne 0 ]; then echo \"ERROR: Conda activate '{conda_env}' failed with code $conda_activate_exit_code\" >&2; exit $conda_activate_exit_code; fi",
-                    "echo 'Conda environment activated.'",
-                    "echo \"PATH: $PATH\"", "echo \"CONDA_DEFAULT_ENV: $CONDA_DEFAULT_ENV\"",
-                    "echo \"Which Python: $(which python)\"", "echo \"Python Version: $(python --version)\"",
-                ])
+                # Use conda run for environment activation
+                cmd = ['conda', 'run', '-n', conda_env, 'python3', script_path] + args_for_exec
             else:
-                script_content.append("echo 'No conda environment specified.'")
-
-            # Prepare Python command execution using args_with_cuda (which has modified --cuda)
-            python_cmd_list = ["python", "-u", script_path] # -u for unbuffered python output
-            if args_with_cuda:
-                try: str_args = [str(arg) for arg in args_with_cuda]; python_cmd_list.extend(str_args)
-                except Exception as e_args: raise ValueError(f"Invalid screen arguments for job {job_id}") from e_args
-            python_cmd_str = shlex.join(python_cmd_list)
-
-            # --- Use `script` command for execution and logging ---
-            # script -q: quiet (no start/done messages from script itself)
-            # script -e: return exit code of the command
-            # script -c "command": execute the command string
-            # script logfile: the file to write the typescript to
-            script_command_str = f"script -q -e -c {shlex.quote(python_cmd_str)} {shlex.quote(str(job_output_log))}"
-
-            script_content.extend([
-                f"echo 'Executing Python command via script: {script_command_str}'",
-                f"echo 'Output being captured to: {job_output_log}'",
-                script_command_str, # Execute the script command
-                "exit_code=$?", # Capture the exit code returned by `script -e`
-                f"echo \"Script command finished with exit code: $exit_code\"",
-            ])
-            # --- End `script` execution ---
-
-            # --- Record results (based on exit code from `script`) ---
-            script_content.extend([
-                f"if [ $exit_code -eq 0 ]; then",
-                f"  echo 'Command reported success (Exit Code: 0).'",
-                f"else",
-                f"  echo 'Command reported failure (Exit Code: $exit_code).'",
-                f"fi",
-                f"echo \"--- Ending Job Execution Script --- Timestamp: $(date)\"",
-                f"exit $exit_code" # Exit the wrapper script with the python script's exit code
-            ])
-
-            # Write and execute the wrapper script
-            temp_script_dir = Path("/tmp")
-            temp_script_path = temp_script_dir / f"run_{session_name}_{job_id[:4]}.sh"
-            with open(temp_script_path, 'w') as f: f.write("\n".join(script_content))
-            os.chmod(temp_script_path, 0o755)
-            logger.debug(f"GPU(s) {gpu_ids_str}: Temp script for job ID {job_id}: {temp_script_path}")
-
-            # --- Start screen session ---
-            # The screen session now just runs the wrapper script
-            screen_cmd = ['screen', '-dmS', session_name, str(temp_script_path)]
-            logger.info(f"GPU(s) {gpu_ids_str}: Starting screen session '{session_name}' for job ID {job_id}")
-            # Check if `script` command exists before trying to launch
-            try:
-                subprocess.run(['script', '--version'], check=True, capture_output=True, text=True)
-            except (FileNotFoundError, subprocess.CalledProcessError) as script_err:
-                 logger.error(f"CRITICAL: `script` command not found or failed check. Cannot launch job {job_id} in screen with TTY preservation. Error: {script_err}")
-                 # Clean up temp wrapper script if created
-                 if temp_script_path and temp_script_path.exists():
-                     try: temp_script_path.unlink(missing_ok=True)
-                     except OSError as e_rm: logger.warning(f"Error removing temp script {temp_script_path}: {e_rm}")
-                 return False # Launch failure
-
-            process = subprocess.run(screen_cmd, env=env, check=True, capture_output=True, text=True)
-            logger.info(f"GPU(s) {gpu_ids_str}: Screen session launched. To view progress: screen -r {session_name}")
-            logger.info(f"GPU(s) {gpu_ids_str}: Job output log (typescript): {job_output_log}")
-            logger.warning(f"GPU(s) {gpu_ids_str}: Note: Log file '{job_output_log}' contains raw terminal escape codes.")
-
-            # --- Start monitoring thread ---
-            # Pass the full original job_tuple so monitor has original_line for release log
-            monitoring_thread = threading.Thread(
-                target=self._monitor_screen,
-                args=(session_name, job_id, script_path, assigned_gpu_ids, required_gpus, temp_script_path, start_time, mode_tag, job_hash, original_line, job_output_log), # Pass log path for potential cleanup info
-                name=f"ScreenMonitor-GPU{gpu_ids_str}-{mode_tag}-{job_id[:6]}",
-                daemon=True
+                # Direct python execution
+                cmd = ['python3', script_path] + args_for_exec
+            
+            logger.info(f"GPU(s) {cuda_arg_value}: Starting direct execution for job ID {job_id}")
+            logger.debug(f"GPU(s) {cuda_arg_value}: Command: {' '.join(cmd)}")
+            
+            # Execute the job
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=False,  # Let output go to terminal/logs
+                text=True,
+                cwd=os.getcwd()  # Run in current working directory
             )
-            monitoring_thread.start()
-
-            return True # Launch success
-
+            
+            # Check the exit code
+            if result.returncode == 0:
+                logger.info(f"GPU(s) {cuda_arg_value}: Job ID {job_id} completed successfully (exit code: 0)")
+                return True
+            else:
+                logger.error(f"GPU(s) {cuda_arg_value}: Job ID {job_id} failed with exit code: {result.returncode}")
+                return False
+                
         except subprocess.CalledProcessError as e:
-             gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-             logger.error(f"GPU(s) {gpu_ids_str}: Failed to launch screen session '{session_name}'. Return code: {e.returncode}")
-             logger.error(f"Stdout: {e.stdout}")
-             logger.error(f"Stderr: {e.stderr}")
-             # Clean up temp files if created
-             if temp_script_path and temp_script_path.exists():
-                 try: temp_script_path.unlink(missing_ok=True)
-                 except OSError as e_rm: logger.warning(f"Error removing temp script {temp_script_path}: {e_rm}")
-             job_output_log.unlink(missing_ok=True) # Clean up log file
-             return False # Launch failure
+            logger.error(f"GPU(s) {cuda_arg_value}: Job ID {job_id} failed with CalledProcessError: {e}")
+            return False
+        except FileNotFoundError as e:
+            logger.error(f"GPU(s) {cuda_arg_value}: Job ID {job_id} failed - script or interpreter not found: {e}")
+            return False
         except Exception as e:
-            gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-            logger.error(f"GPU(s) {gpu_ids_str}: Error setting up or launching screen session for job ID {job_id} (Hash: {job_hash}): {e}", exc_info=True)
-            # Cleanup temp files if created
-            if temp_script_path and temp_script_path.exists():
-                try: temp_script_path.unlink(missing_ok=True)
-                except OSError as e_rm: logger.warning(f"Error removing temp script {temp_script_path}: {e_rm}")
-            # Cleanup log file if created during failed setup
-            job_output_log.unlink(missing_ok=True)
-            return False # Launch failure
+            logger.error(f"GPU(s) {cuda_arg_value}: Job ID {job_id} failed with unexpected error: {e}", exc_info=True)
+            return False
 
-
-    # --- Monitor Screen (Takes log path for info) ---
-    def _monitor_screen(self, session_name: str, job_id: str, script_path: str,
-                        assigned_gpu_ids: List[int], required_gpus: float,
-                        temp_script_path: Optional[Path], start_time: datetime, mode_tag: str,
-                        job_hash: Optional[str], original_line: Optional[str], job_output_log: Path): # Added job_output_log
+    def _run_with_screen(self, job_tuple: Tuple, assigned_gpu_ids: List[int], env: dict, start_time: datetime, mode_tag: str) -> Tuple[bool, Optional[str]]:
         """
-        Monitors a specific screen session until it terminates or the scheduler stops.
-        Determines job success based on whether the session ended before scheduler stop.
-        Cleans up temporary files and calls _release_gpu.
-        NOTE: Does not check the actual exit code of the job anymore directly,
-              relies on the wrapper script's exit code captured by `script -e`.
-              Success is primarily inferred from the session ending naturally.
-        """
-        job_name = Path(script_path).name
-        gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-        log_prefix = f"GPU(s) {gpu_ids_str}: Job ID {job_id} (Hash: {job_hash}, Screen: {session_name}, Mode: {mode_tag})"
-        logger.info(f"{log_prefix} Monitoring screen session... Log: {job_output_log}")
-        active = True
-        session_ended_naturally = False # Track if session ended before stop event
-        check_interval = 15 # Seconds between checks
-
-        # Loop while the screen session appears active and the scheduler hasn't stopped
-        while active and not self.stop_event.is_set():
-            try:
-                # Use regex to check for exact session name match, avoiding pid prefix issues
-                cmd = f"screen -ls | grep -qE '^\\s*[0-9]+\\.{re.escape(session_name)}\\s+\\(' "
-                subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
-                active = True
-                logger.debug(f"{log_prefix} Screen session is active.")
-            except subprocess.CalledProcessError:
-                active = False
-                session_ended_naturally = True # Screen session ended on its own
-                logger.info(f"{log_prefix} Screen session finished or not found.")
-            except FileNotFoundError:
-                 logger.error(f"{log_prefix} 'screen' command not found during monitoring.")
-                 active = False
-                 session_ended_naturally = False # Cannot determine outcome
-            except Exception as e:
-                logger.error(f"{log_prefix} Error checking screen session: {e}. Assuming finished.")
-                active = False
-                session_ended_naturally = False # Cannot determine outcome
-
-            if active:
-                if self.stop_event.wait(timeout=check_interval):
-                    logger.warning(f"{log_prefix} Stop event received during monitoring.")
-                    active = False # Stop monitoring
-                    session_ended_naturally = False # Scheduler stopped it
-                    # Proceed to cleanup
-
-        # --- Screen session ended or scheduler stopped ---
-        logger.info(f"{log_prefix} Monitoring finished.")
-
-        # Determine final success status based only on whether the session ended before stop event
-        # We rely on the wrapper script + `script -e` to handle the actual exit code,
-        # but for the scheduler's perspective, ending naturally is the primary success indicator.
-        final_success = session_ended_naturally
-        if final_success:
-             logger.info(f"{log_prefix} Screen session ended naturally. Assuming success based on session termination.")
-        else:
-             if not self.stop_event.is_set(): # If stop event isn't set, but session didn't end naturally (e.g., error checking screen)
-                  logger.warning(f"{log_prefix} Screen session did not end naturally or status check failed. Assuming failure.")
-             else: # Stop event was set
-                  logger.info(f"{log_prefix} Scheduler stop event triggered during monitoring. Assuming failure.")
-
-        # Clean up the temporary wrapper script
-        if temp_script_path and temp_script_path.exists():
-            logger.debug(f"{log_prefix} Removing temporary script: {temp_script_path}")
-            try: temp_script_path.unlink()
-            except OSError as e: logger.warning(f"{log_prefix} Error removing temp script {temp_script_path}: {e}")
-
-        # Determine the reason string for the release log message
-        reason = f"screen session ended (Success inferred: {final_success})"
-        if not session_ended_naturally and self.stop_event.is_set(): # Check if stop event occurred *and* session didn't end naturally
-            reason = f"scheduler shutdown during screen session (Success inferred: {final_success})"
-
-        # --- Call _release_gpu from the monitor thread ---
-        # Pass original_line for logging
-        self._release_gpu(assigned_gpu_ids, required_gpus, job_id, job_name, start_time, mode_tag, job_hash, original_line, final_success, reason)
-
-
-    # --- Run Directly ---
-    def _run_directly(self, job_tuple: Tuple, assigned_gpu_ids: List[int], env: Dict, start_time: datetime, mode_tag: str) -> bool:
-        """
-        Runs a job directly as a subprocess on its assigned GPU(s).
-        Args include modified '--cuda'. Logs original line in header.
-
+        Launches a job in a GNU Screen session and returns launch status and session name.
+        The job success/failure will be monitored by a separate monitoring thread.
+        
+        Args:
+            job_tuple: Job tuple containing all job information
+            assigned_gpu_ids: List of assigned GPU IDs
+            env: Environment variables including CUDA_VISIBLE_DEVICES
+            start_time: Job start time
+            mode_tag: Sanitized mode tag for logging
+            
         Returns:
-            bool: True if the job script exited with code 0, False otherwise.
+            Tuple[bool, Optional[str]]: (launch_success, session_name)
         """
-        # Unpack the full tuple including original_line
-        (priority, job_id, script_path, conda_env, args_with_cuda, _,
+        (priority, job_id, script_path, conda_env, args_for_exec, _,
          job_hash, required_gpus, llm_name, original_line) = job_tuple
-        script_p = Path(script_path)
-        job_name = script_p.name
-        gpu_ids_str = ",".join(map(str, sorted(assigned_gpu_ids)))
-
-        log_filename = Path(f"job_{job_name}_{mode_tag}_{job_hash[:8] if job_hash else 'nohash'}_gpu{gpu_ids_str}_{start_time.strftime('%Y%m%d_%H%M%S')}.log")
-        log_prefix = f"GPU(s) {gpu_ids_str}: Job ID {job_id} (LLM: {llm_name}, Req: {required_gpus:.2f})"
-        logger.info(f"{log_prefix} Running directly. Log: {log_filename}")
-
-        process = None
-        log_file = None
-        temp_script_path = None # For conda activation wrapper
-        return_code = -1 # Default to failure
-
+        
+        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+        
         try:
-            # Open log file and write header information
-            log_file = open(log_filename, 'w', buffering=1) # Line buffered
-            log_file.write(f"Job ID: {job_id}\n")
-            log_file.write(f"Job Hash: {job_hash or 'N/A'}\n")
-            log_file.write(f"Original Line: {original_line.strip() if original_line else 'N/A'}\n") # Add original line
-            log_file.write(f"LLM Name: {llm_name or 'N/A'}\n")
-            log_file.write(f"GPUs Required: {required_gpus:.2f}\n")
-            log_file.write(f"Mode Tag: {mode_tag}\n")
-            log_file.write(f"Script: {script_path}\n")
-            log_file.write(f"Conda Env: {conda_env or 'None'}\n")
-            log_file.write(f"Arguments (with modified --cuda): {args_with_cuda or 'None'}\n")
-            log_file.write(f"GPU ID(s) Assigned: {gpu_ids_str}\n")
-            log_file.write(f"Start Time: {start_time.isoformat()}\n")
-            log_file.write("-" * 60 + "\n")
-            log_file.flush()
-
-            command_list = []
-            shell_mode = False
-
-            # --- Build command (with conda wrapper if needed) ---
+            # Create unique screen session name
+            session_name = f"gpujob_{cuda_arg_value}_{mode_tag}_{job_id[:8]}"
+            
+            # Build the command for screen execution
             if conda_env:
-                # Use a temporary bash script
-                shell_script_lines = ["#!/bin/bash", f"# Job ID: {job_id}", f"# Hash: {job_hash}", "set -e", "set -o pipefail"]
-                # --- Conda activation logic (Copy from _run_with_screen) ---
-                conda_base_cmd = f"source $(conda info --base)/etc/profile.d/conda.sh" # Default guess
-                conda_path_found = False
-                conda_prefix = os.environ.get('CONDA_PREFIX')
-                potential_conda_sh = None
-                if conda_prefix: # Check relative to current env
-                    conda_base_dir = Path(conda_prefix).parent.parent
-                    potential_conda_sh = conda_base_dir / "etc/profile.d/conda.sh"
-                    if potential_conda_sh.exists():
-                        conda_base_cmd = f"source {shlex.quote(str(potential_conda_sh))}"
-                        conda_path_found = True
-                if not conda_path_found: # Check common default locations
-                    home_dir = os.environ.get('HOME', '/root') # Get home directory
-                    for default_path in [f"{home_dir}/anaconda3/etc/profile.d/conda.sh",
-                                         f"{home_dir}/miniconda3/etc/profile.d/conda.sh",
-                                         "/opt/conda/etc/profile.d/conda.sh"]:
-                        potential_conda_sh = Path(default_path)
-                        if potential_conda_sh.exists():
-                            conda_base_cmd = f"source {shlex.quote(str(potential_conda_sh))}"
-                            conda_path_found = True
-                            break
-                # if not conda_path_found: logger.warning(...) # Logged by scheduler
-                # --- End Conda Logic ---
-
-                shell_script_lines.extend([
-                    conda_base_cmd,
-                    "conda_init_exit_code=$?",
-                    "if [ $conda_init_exit_code -ne 0 ]; then echo \"WARNING: Conda init command exited with code $conda_init_exit_code\" >&2; fi", # Log warning only
-                    f"conda activate {shlex.quote(conda_env)}",
-                    "conda_activate_exit_code=$?",
-                    "if [ $conda_activate_exit_code -ne 0 ]; then echo \"ERROR: Conda activate '{conda_env}' failed with code $conda_activate_exit_code\" >&2; exit $conda_activate_exit_code; fi", # Fail if activation fails
-                ])
-
-                # Prepare the python command part using args_with_cuda
-                python_cmd_list = ["python", "-u", script_path]
-                if args_with_cuda:
-                    try: str_args = [str(arg) for arg in args_with_cuda] ; python_cmd_list.extend(str_args)
-                    except Exception as e_args: raise ValueError(f"Invalid direct arguments for job {job_id}") from e_args
-                shell_script_lines.append(shlex.join(python_cmd_list))
-
-                # Write and prepare temp script execution
-                script_id = f"{start_time.strftime('%Y%m%d%H%M%S')}_{os.getpid()}_{job_id[:4]}"
-                temp_script_dir = Path("/tmp")
-                temp_script_path = temp_script_dir / f"direct_job_{script_id}.sh"
-                with open(temp_script_path, 'w') as f: f.write("\n".join(shell_script_lines))
-                os.chmod(temp_script_path, 0o755)
-                command_list = [str(temp_script_path)]
-                shell_mode = False # Execute the script directly, not via shell
+                # Use conda run for environment activation
+                python_cmd = f"conda run -n {conda_env} python3 {script_path} {' '.join(args_for_exec)}"
             else:
-                # No conda env, run python directly with args_with_cuda
-                command_list = ['python', '-u', script_path]
-                if args_with_cuda:
-                    try: str_args = [str(arg) for arg in args_with_cuda] ; command_list.extend(str_args)
-                    except Exception as e_args: raise ValueError(f"Invalid direct arguments for job {job_id}") from e_args
-                shell_mode = False
-
-            logger.info(f"{log_prefix}: Executing command: {' '.join(map(shlex.quote, command_list))}")
-            # Start the subprocess
-            process = subprocess.Popen(
-                command_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, bufsize=1, shell=shell_mode # Ensure shell=False unless using shell features explicitly
+                # Direct python execution
+                python_cmd = f"python3 {script_path} {' '.join(args_for_exec)}"
+            
+            # Create screen log file path
+            screen_log_file = SCREEN_LOG_DIR / f"{session_name}.log"
+            
+            # Use script command to preserve TTY behavior and log output
+            screen_cmd = [
+                'screen', '-dmS', session_name,
+                'script', '-f', str(screen_log_file),
+                '-c', python_cmd
+            ]
+            
+            logger.info(f"GPU(s) {cuda_arg_value}: Starting screen session '{session_name}' for job ID {job_id}")
+            logger.debug(f"GPU(s) {cuda_arg_value}: Screen command: {' '.join(screen_cmd)}")
+            
+            # Launch the screen session
+            result = subprocess.run(
+                screen_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                cwd=os.getcwd()
             )
-
-            # --- Real-time output handling ---
-            def stream_output(pipe, prefix, log_f, logger_func):
-                # Reads lines from the process's stdout or stderr pipe
-                # Logs them with a prefix and writes to the job-specific log file
-                try:
-                    for line in iter(pipe.readline, ''):
-                        line_stripped = line.rstrip()
-                        logger_func(f"[{log_prefix} {prefix}] {line_stripped}")
-                        if log_f:
-                            try: log_f.write(f"{prefix}: {line}"); log_f.flush()
-                            except Exception as write_e: logger.error(f"Error writing to log file {log_filename}: {write_e}")
-                except Exception as e: logger.error(f"Stream reading error ({log_prefix} {prefix}): {e}")
-                finally:
-                    try: pipe.close()
-                    except Exception: pass
-
-            stdout_thread = threading.Thread(target=stream_output, args=(process.stdout, "OUT", log_file, logger.info), daemon=True)
-            stderr_thread = threading.Thread(target=stream_output, args=(process.stderr, "ERR", log_file, logger.warning), daemon=True)
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Wait for process completion
-            return_code = process.wait()
-
-            # Wait for output threads to finish logging remaining output
-            stdout_thread.join(timeout=5.0)
-            stderr_thread.join(timeout=5.0)
-
-            # Log final status
-            end_iso = datetime.now().isoformat()
-            log_file.write("-" * 60 + "\n")
-            log_file.write(f"End Time: {end_iso}\n")
-            log_file.write(f"Process finished with exit code: {return_code}\n")
-            log_file.flush()
-
-            if return_code == 0:
-                logger.info(f"{log_prefix} completed successfully (Exit Code: {return_code}).")
+            
+            if result.returncode == 0:
+                logger.info(f"GPU(s) {cuda_arg_value}: Screen session '{session_name}' launched successfully for job ID {job_id}")
+                
+                # Start monitoring thread for this screen session
+                monitor_thread = threading.Thread(
+                    target=self._monitor_screen,
+                    args=(job_tuple, assigned_gpu_ids, session_name, start_time, mode_tag),
+                    name=f"ScreenMonitor-{session_name}",
+                    daemon=True
+                )
+                monitor_thread.start()
+                
+                return True, session_name
             else:
-                logger.error(f"{log_prefix} failed (Exit Code: {return_code}). See log: {log_filename}")
-
+                logger.error(f"GPU(s) {cuda_arg_value}: Failed to launch screen session '{session_name}' for job ID {job_id}. "
+                           f"Exit code: {result.returncode}, stderr: {result.stderr}")
+                return False, None
+                
         except Exception as e:
-            logger.error(f"{log_prefix}: Error executing job directly: {e}", exc_info=True)
-            if log_file:
-                try: log_file.write(f"\nCRITICAL ERROR during execution setup: {e}\n")
-                except Exception: pass
-            return_code = -1 # Ensure failure
-        finally:
-            # --- Cleanup ---
-            if log_file:
-                try: log_file.close()
-                except Exception: pass
-            if temp_script_path and temp_script_path.exists():
-                try: temp_script_path.unlink()
-                except OSError as e: logger.warning(f"Error removing temp script {temp_script_path}: {e}")
+            logger.error(f"GPU(s) {cuda_arg_value}: Failed to launch screen session for job ID {job_id}: {e}", exc_info=True)
+            return False, None
 
-            # Return True only if the process exit code was explicitly 0
-            return return_code == 0
-
-
-    # --- Job Addition Methods ---
-    def add_job(self, script: str, conda_env: Optional[str] = None, args: Optional[List[str]] = None,
-                priority: int = 0, allowed_gpus: Optional[List[int]] = None,
-                original_line: Optional[str] = None): # Added original_line parameter
+    def _monitor_screen(self, job_tuple: Tuple, assigned_gpu_ids: List[int], session_name: str, start_time: datetime, mode_tag: str):
         """
-        Adds a single job with a unique ID, LLM requirement, hash, and original line to the queue.
-        Parses --llm argument to determine GPU requirements from config.
+        Monitors a screen session until it completes and determines success/failure based on exit code.
+        
+        Args:
+            job_tuple: Job tuple containing all job information
+            assigned_gpu_ids: List of assigned GPU IDs
+            session_name: Name of the screen session
+            start_time: Job start time
+            mode_tag: Sanitized mode tag for logging
         """
-        script_p = Path(script)
-        if not script_p.is_file():
-            logger.error(f"Script path not found or is not a file: {script}. Job not added.")
-            return
-
-        job_id = str(uuid.uuid4())
-        log_source = "Manual" if original_line is None else "File"
-        args_list = args or [] # Ensure args is a list
-
-        # --- Parse --llm argument and get requirement ---
-        llm_name = _extract_arg_value(args_list, '--llm')
-        required_gpus = self.get_llm_gpu_requirement(llm_name)
-        logger.debug(f"Job Add: Script={script}, LLM='{llm_name}', Determined GPU Req={required_gpus:.2f}")
-        # ---------------------------------------------
-
-        # --- Determine final allowed GPUs based ONLY on input parameter ---
-        final_allowed_gpus: Optional[List[int]] = None
-        if allowed_gpus is not None:
-            # Filter out invalid GPU IDs
-            valid_gpus_from_param = [gpu_id for gpu_id in allowed_gpus if 0 <= gpu_id < self.num_gpus]
-            if not valid_gpus_from_param:
-                logger.error(f"No valid GPUs in allowed_gpus list {allowed_gpus} for script {script}. Max GPU ID is {self.num_gpus - 1}. Job not added.")
-                return
-            # Warn if some were removed
-            if len(valid_gpus_from_param) < len(allowed_gpus):
-                 logger.warning(f"Invalid GPU IDs removed from allowed_gpus for script {script}. Original: {allowed_gpus}, Valid: {valid_gpus_from_param}")
-            final_allowed_gpus = sorted(list(set(valid_gpus_from_param)))
-        # -----------------------------------------------------------------
-
-        # --- Hash calculation and tracking for jobs from file ---
-        job_hash = None
-        if original_line is not None:
-            log_source = "File"
-            try:
-                # Calculate hash including the GPU requirement
-                job_hash = self._calculate_job_hash(priority, script, conda_env, args_list, final_allowed_gpus, required_gpus)
-                with self.lock:
-                    if job_hash in self.managed_job_hashes:
-                        existing_job_id = self.hash_to_job_id.get(job_hash, "Unknown")
-                        logger.debug(f"Job from line '{original_line.strip()}' (Hash: {job_hash}, ExistingID: {existing_job_id}) is already managed for this run. Skipping add.")
-                        return # Don't add duplicates
-                    else:
-                        self.managed_job_hashes.add(job_hash)
-                        self.hash_to_job_id[job_hash] = job_id
-                        logger.info(f"Adding job from file (Hash: {job_hash}, JobID: {job_id}, LLM: {llm_name}, Req: {required_gpus:.2f}). Marked as managed.")
-            except Exception as e:
-                logger.error(f"Error calculating hash or managing state for job from line '{original_line.strip()}': {e}. Job not added.")
-                if job_hash:
-                     with self.lock:
-                         self.managed_job_hashes.discard(job_hash)
-                         self.hash_to_job_id.pop(job_hash, None)
-                return
-        # -------------------------------------------------------
-
-        # --- Add job to queue ---
-        # Job tuple: (priority, job_id, script_path, conda_env, args, allowed_gpus,
-        #             job_hash, required_gpus, llm_name, original_line) # Added original_line
-        job_tuple = (priority, job_id, str(script_p), conda_env, args_list, final_allowed_gpus,
-                     job_hash, required_gpus, llm_name, original_line) # Pass original_line here
+        (priority, job_id, script_path, conda_env, args_for_exec, _,
+         job_hash, required_gpus, llm_name, original_line) = job_tuple
+        
+        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+        job_name = Path(script_path).name
+        
+        logger.info(f"GPU(s) {cuda_arg_value}: Monitoring screen session '{session_name}' for job ID {job_id}")
+        
+        job_completed_successfully = False
+        release_reason = "screen session monitoring"
+        
         try:
-            self.job_queue.put(job_tuple)
-            logger.info(f"Job ID {job_id} ({log_source}, Hash: {job_hash or 'N/A'}, LLM: {llm_name}, Req: {required_gpus:.2f}) added to queue: '{script_p.name}' (Prio: {priority}, GPUs Allowed: {final_allowed_gpus or 'Any'})")
+            # Poll the screen session until it completes
+            while True:
+                if self.stop_event.is_set():
+                    logger.warning(f"GPU(s) {cuda_arg_value}: Stop event detected while monitoring job ID {job_id}. "
+                                 f"Screen session '{session_name}' may still be running.")
+                    release_reason = "scheduler shutdown during screen monitoring"
+                    break
+                
+                # Check if screen session still exists
+                try:
+                    result = subprocess.run(
+                        ['screen', '-S', session_name, '-Q', 'select'],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    
+                    if result.returncode == 0:
+                        # Session still exists, wait and check again
+                        time.sleep(5)
+                        continue
+                    else:
+                        # Session has ended, check exit status
+                        logger.info(f"GPU(s) {cuda_arg_value}: Screen session '{session_name}' has ended for job ID {job_id}")
+                        
+                        # Try to get the exit status from the screen session
+                        # Screen doesn't preserve exit codes directly, so we need to check the log or use other methods
+                        screen_log_file = SCREEN_LOG_DIR / f"{session_name}.log"
+                        
+                        # For now, assume success if session completed without error
+                        # In a more sophisticated implementation, you could parse the log file
+                        # or use a wrapper script that saves the exit code
+                        if screen_log_file.exists():
+                            try:
+                                # Check if log file contains any obvious error indicators
+                                with open(screen_log_file, 'r') as f:
+                                    log_content = f.read()
+                                
+                                # Simple heuristic: look for common Python error patterns
+                                error_patterns = [
+                                    'Traceback (most recent call last):',
+                                    'Error:',
+                                    'Exception:',
+                                    'CRITICAL:',
+                                    'FATAL:'
+                                ]
+                                
+                                has_errors = any(pattern in log_content for pattern in error_patterns)
+                                
+                                if has_errors:
+                                    logger.warning(f"GPU(s) {cuda_arg_value}: Job ID {job_id} appears to have failed based on log analysis")
+                                    job_completed_successfully = False
+                                    release_reason = "screen job failed (log analysis)"
+                                else:
+                                    logger.info(f"GPU(s) {cuda_arg_value}: Job ID {job_id} appears to have completed successfully")
+                                    job_completed_successfully = True
+                                    release_reason = "screen job completed successfully"
+                                    
+                            except Exception as log_error:
+                                logger.warning(f"GPU(s) {cuda_arg_value}: Could not analyze log file for job ID {job_id}: {log_error}")
+                                job_completed_successfully = False
+                                release_reason = "screen job completed (log analysis failed)"
+                        else:
+                            logger.warning(f"GPU(s) {cuda_arg_value}: No log file found for job ID {job_id}")
+                            job_completed_successfully = False
+                            release_reason = "screen job completed (no log file)"
+                        
+                        break
+                        
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"GPU(s) {cuda_arg_value}: Timeout checking screen session status for job ID {job_id}")
+                    continue
+                except Exception as check_error:
+                    logger.error(f"GPU(s) {cuda_arg_value}: Error checking screen session status for job ID {job_id}: {check_error}")
+                    time.sleep(10)  # Wait longer on error
+                    continue
+                    
         except Exception as e:
-            logger.error(f"Failed to add job ID {job_id} ('{script_p.name}') to queue: {e}")
-            if job_hash: # Clean up managed state if queue add failed
-                with self.lock:
-                    if job_hash in self.managed_job_hashes:
-                        self.managed_job_hashes.remove(job_hash)
-                        self.hash_to_job_id.pop(job_hash, None)
-                        logger.warning(f"Removed hash {job_hash} from managed set due to queue insertion failure.")
+            logger.error(f"GPU(s) {cuda_arg_value}: Error monitoring screen session '{session_name}' for job ID {job_id}: {e}", exc_info=True)
+            job_completed_successfully = False
+            release_reason = f"screen monitoring error: {e}"
+        
+        finally:
+            # Release GPU allocation
+            self._release_gpu(assigned_gpu_ids, required_gpus, job_id, job_name, start_time, mode_tag, 
+                            job_hash, original_line, success=job_completed_successfully, reason=release_reason)
 
+    def _log_job_start(self, job_id: str, job_hash: str, assigned_gpu_ids: List[int], 
+                      start_time: datetime, original_line: Optional[str], screen_session_name: Optional[str] = None):
+        """
+        Logs job start information to the running_jobs.log file.
+        
+        Args:
+            job_id: Unique job identifier
+            job_hash: Job hash for duplicate detection
+            assigned_gpu_ids: List of assigned GPU IDs
+            start_time: Job start timestamp
+            original_line: Original job line from jobs file (if applicable)
+            screen_session_name: Screen session name (if using screen mode)
+        """
+        try:
+            cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+            
+            # Create log entry
+            log_entry = {
+                "timestamp": start_time.isoformat(),
+                "job_id": job_id,
+                "job_hash": job_hash,
+                "assigned_gpus": assigned_gpu_ids,
+                "cuda_visible_devices": cuda_arg_value,
+                "screen_session": screen_session_name,
+                "original_line": original_line.strip() if original_line else None,
+                "status": "STARTED"
+            }
+            
+            # Write to running jobs log file
+            with self.job_log_lock:
+                with open(RUNNING_JOBS_LOG_FILE, 'a') as f:
+                    f.write(json.dumps(log_entry) + '\n')
+                    
+            logger.debug(f"Logged job start for ID {job_id} to {RUNNING_JOBS_LOG_FILE}")
+            
+        except Exception as e:
+            logger.error(f"Failed to log job start for ID {job_id}: {e}", exc_info=True)
+
+    def _release_gpu(self, assigned_gpu_ids: List[int], required_gpus: float, job_id: str, 
+                    job_name: str, start_time: datetime, mode_tag: str, job_hash: str, 
+                    original_line: Optional[str], success: bool, reason: str):
+        """
+        Releases GPU allocation and logs job completion.
+        
+        Args:
+            assigned_gpu_ids: List of GPU IDs to release
+            required_gpus: GPU requirement that was allocated
+            job_id: Unique job identifier
+            job_name: Name of the job script
+            start_time: Job start timestamp
+            mode_tag: Sanitized mode tag
+            job_hash: Job hash for tracking
+            original_line: Original job line from jobs file
+            success: Whether the job completed successfully
+            reason: Reason for release (completion, failure, etc.)
+        """
+        cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+        end_time = datetime.now(timezone.utc)
+        duration = (end_time - start_time).total_seconds()
+        
+        try:
+            # Release GPU allocation
+            with self.lock:
+                allocation_to_release = 0.0
+                if required_gpus <= (1.0 + GPU_ALLOCATION_PRECISION):
+                    # Fractional or single GPU release
+                    allocation_to_release = required_gpus
+                    for gpu_id in assigned_gpu_ids:
+                        if 0 <= gpu_id < len(self.gpu_status):
+                            self.gpu_status[gpu_id] = max(0.0, self.gpu_status[gpu_id] - allocation_to_release)
+                else:
+                    # Multi-GPU release - set to 0.0 (free)
+                    allocation_to_release = 1.0
+                    for gpu_id in assigned_gpu_ids:
+                        if 0 <= gpu_id < len(self.gpu_status):
+                            self.gpu_status[gpu_id] = 0.0
+                
+                # Save state after releasing allocation
+                try:
+                    self.save_state()
+                except Exception as save_error:
+                    logger.error(f"CRITICAL: Failed to save state after releasing GPU(s) {cuda_arg_value} for job {job_id}: {save_error}")
+            
+            # Log job completion
+            self._log_job_completion(job_id, job_hash, assigned_gpu_ids, start_time, end_time, 
+                                   duration, success, reason, original_line)
+            
+            # Update performance metrics
+            self._update_performance_metrics('job_completed', success=success, 
+                                           duration_seconds=duration, gpu_requirement=required_gpus)
+            
+            status_msg = "COMPLETED SUCCESSFULLY" if success else "FAILED"
+            logger.info(f"GPU(s) {cuda_arg_value}: Released allocation for job ID {job_id} - {status_msg} "
+                       f"(Duration: {duration:.1f}s, Reason: {reason})")
+            
+        except Exception as e:
+            logger.error(f"Error releasing GPU allocation for job ID {job_id}: {e}", exc_info=True)
+
+    def _log_job_completion(self, job_id: str, job_hash: str, assigned_gpu_ids: List[int], 
+                           start_time: datetime, end_time: datetime, duration: float, 
+                           success: bool, reason: str, original_line: Optional[str]):
+        """
+        Logs job completion information to the done_jobs.log file.
+        
+        Args:
+            job_id: Unique job identifier
+            job_hash: Job hash for duplicate detection
+            assigned_gpu_ids: List of assigned GPU IDs
+            start_time: Job start timestamp
+            end_time: Job end timestamp
+            duration: Job duration in seconds
+            success: Whether the job completed successfully
+            reason: Reason for completion/failure
+            original_line: Original job line from jobs file (if applicable)
+        """
+        try:
+            cuda_arg_value = ",".join(map(str, sorted(assigned_gpu_ids)))
+            
+            # Create completion log entry
+            log_entry = {
+                "timestamp": end_time.isoformat(),
+                "job_id": job_id,
+                "job_hash": job_hash,
+                "assigned_gpus": assigned_gpu_ids,
+                "cuda_visible_devices": cuda_arg_value,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "duration_seconds": round(duration, 2),
+                "success": success,
+                "reason": reason,
+                "original_line": original_line.strip() if original_line else None,
+                "status": "COMPLETED"
+            }
+            
+            # Write to done jobs log file
+            with self.job_log_lock:
+                with open(DONE_JOBS_LOG_FILE, 'a') as f:
+                    f.write(json.dumps(log_entry) + '\n')
+            
+            logger.debug(f"Logged job completion for ID {job_id} to {DONE_JOBS_LOG_FILE}")
+            
+        except Exception as e:
+            logger.error(f"Failed to log job completion for ID {job_id}: {e}", exc_info=True)
+
+    def add_job(self, script_path: str, conda_env: Optional[str] = None, 
+               args: Optional[List[str]] = None, priority: int = 0, 
+               allowed_gpus: Optional[List[int]] = None, original_line: Optional[str] = None) -> bool:
+        """
+        Adds a single job to the queue with LLM requirement calculation and duplicate detection.
+        
+        Args:
+            script_path: Path to the Python script to execute
+            conda_env: Optional conda environment name
+            args: Optional list of arguments for the script
+            priority: Job priority (lower number = higher priority)
+            allowed_gpus: Optional list of allowed GPU IDs
+            original_line: Original job line from file (for logging/tracking)
+            
+        Returns:
+            bool: True if job was added, False if it was a duplicate or failed validation
+        """
+        try:
+            # Validate script path
+            if not script_path or not Path(script_path).exists():
+                logger.error(f"Script path does not exist: {script_path}")
+                return False
+            
+            # Extract LLM name and calculate GPU requirement
+            llm_name = _extract_arg_value(args, '--llm') if args else None
+            required_gpus = self.get_llm_gpu_requirement(llm_name)
+            
+            # Validate allowed GPUs
+            if allowed_gpus:
+                validated_gpus = []
+                for gpu_id in allowed_gpus:
+                    if 0 <= gpu_id < self.num_gpus:
+                        validated_gpus.append(gpu_id)
+                    else:
+                        logger.warning(f"Invalid GPU ID {gpu_id} for job {script_path}. Must be 0-{self.num_gpus-1}")
+                allowed_gpus = validated_gpus if validated_gpus else None
+            
+            # Calculate job hash for duplicate detection
+            job_hash = self._calculate_job_hash(priority, script_path, conda_env, args, allowed_gpus, required_gpus)
+            
+            # Check for duplicates
+            with self.lock:
+                if job_hash in self.managed_job_hashes:
+                    logger.debug(f"Duplicate job detected (Hash: {job_hash}): {script_path}")
+                    return False
+                
+                # Cleanup hashes if needed
+                if len(self.managed_job_hashes) >= MAX_MANAGED_HASHES * 0.9:
+                    self._cleanup_managed_hashes()
+                
+                # Generate unique job ID
+                job_id = str(uuid.uuid4())
+                
+                # Create job tuple
+                job_tuple = (
+                    priority,           # 0: Priority for queue ordering
+                    job_id,            # 1: Unique job identifier
+                    script_path,       # 2: Script path
+                    conda_env,         # 3: Conda environment
+                    args,              # 4: Script arguments
+                    allowed_gpus,      # 5: Allowed GPU list
+                    job_hash,          # 6: Job hash for duplicate detection
+                    required_gpus,     # 7: GPU requirement (float)
+                    llm_name,          # 8: LLM name (if specified)
+                    original_line      # 9: Original line from file
+                )
+                
+                # Add to queue
+                self.job_queue.put(job_tuple)
+                
+                # Track as managed
+                self.managed_job_hashes.add(job_hash)
+                self.hash_to_job_id[job_hash] = job_id
+                
+                # Update queue size metrics
+                self._update_performance_metrics('queue_size_update', size=self.job_queue.qsize())
+            
+            logger.info(f"Added job ID {job_id} to queue: {script_path} "
+                       f"(Priority: {priority}, LLM: {llm_name}, GPU Req: {required_gpus:.2f})")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add job {script_path}: {e}", exc_info=True)
+            return False
 
     def add_jobs_from_file(self, file_path: str, initial_load: bool = False):
         """Adds multiple jobs from a file, parsing LLM requirements."""
@@ -1634,6 +1621,132 @@ class GPUJobScheduler:
            self.use_screen = False
            logger.error("Screen functionality disabled due to missing `screen` or `script` command.")
 
+    def _cleanup_managed_hashes(self):
+        """Cleanup old job hashes to prevent memory leaks. Keeps only the most recent hashes."""
+        with self.lock:
+            if len(self.managed_job_hashes) > MAX_MANAGED_HASHES:
+                # Convert to list to get a deterministic order, then keep only the most recent ones
+                # Since we can't easily determine recency without additional metadata,
+                # we'll use a simple approach: clear older hashes periodically
+                excess_count = len(self.managed_job_hashes) - (MAX_MANAGED_HASHES // 2)
+                hashes_list = list(self.managed_job_hashes)
+                
+                # Remove first N hashes (assuming older ones are processed first)
+                for i in range(min(excess_count, len(hashes_list) // 2)):
+                    hash_to_remove = hashes_list[i]
+                    self.managed_job_hashes.discard(hash_to_remove)
+                    # Also clean up the hash_to_job_id mapping
+                    self.hash_to_job_id.pop(hash_to_remove, None)
+                
+                logger.info(f"Cleaned up {excess_count} old job hashes. Current count: {len(self.managed_job_hashes)}")
+
+    def get_health_status(self) -> Dict[str, Any]:
+        """Returns a health status dictionary for monitoring purposes."""
+        try:
+            with self.lock:
+                queue_size = self.job_queue.qsize()
+                managed_hashes_count = len(self.managed_job_hashes)
+                paused_gpus_count = len(self.paused_gpus)
+                
+            active_workers = sum(1 for t in self.worker_threads if t.is_alive())
+            monitor_alive = self.monitor_thread and self.monitor_thread.is_alive()
+            
+            # Check if any GPUs are available
+            available_gpus = 0
+            with self.lock:
+                for i, allocation in enumerate(self.gpu_status):
+                    if i not in self.paused_gpus and allocation < (1.0 - GPU_ALLOCATION_PRECISION):
+                        available_gpus += 1
+            
+            # Calculate basic health score
+            health_issues = []
+            if active_workers == 0:
+                health_issues.append("No active worker threads")
+            if not monitor_alive:
+                health_issues.append("Monitor thread not running")
+            if available_gpus == 0:
+                health_issues.append("No available GPUs")
+            if managed_hashes_count >= MAX_MANAGED_HASHES * 0.9:
+                health_issues.append("Hash table nearly full")
+                
+            status = "healthy" if not health_issues else "degraded" if len(health_issues) <= 2 else "unhealthy"
+            
+            return {
+                "status": status,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "queue_size": queue_size,
+                "active_workers": active_workers,
+                "monitor_thread_alive": monitor_alive,
+                "available_gpus": available_gpus,
+                "paused_gpus": paused_gpus_count,
+                "managed_hashes_count": managed_hashes_count,
+                "health_issues": health_issues,
+                "stop_event_set": self.stop_event.is_set()
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": str(e),
+                "health_issues": [f"Error getting health status: {e}"]
+            }
+
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """Returns current performance metrics for monitoring."""
+        try:
+            with self.metrics_lock:
+                current_time = time.time()
+                uptime_hours = (current_time - self.performance_metrics['start_time']) / 3600.0
+                
+                # Calculate derived metrics
+                total_jobs = self.performance_metrics['jobs_processed']
+                success_rate = (self.performance_metrics['jobs_successful'] / total_jobs * 100) if total_jobs > 0 else 0
+                gpu_utilization = self.performance_metrics['total_gpu_hours_allocated'] / (self.num_gpus * uptime_hours * 100) if uptime_hours > 0 else 0
+                
+                return {
+                    'uptime_hours': round(uptime_hours, 2),
+                    'jobs_processed': self.performance_metrics['jobs_processed'],
+                    'jobs_successful': self.performance_metrics['jobs_successful'],
+                    'jobs_failed': self.performance_metrics['jobs_failed'],
+                    'success_rate_percent': round(success_rate, 1),
+                    'total_gpu_hours_allocated': round(self.performance_metrics['total_gpu_hours_allocated'], 2),
+                    'gpu_utilization_percent': round(gpu_utilization, 1),
+                    'average_queue_wait_time_seconds': round(self.performance_metrics['average_queue_wait_time'], 2),
+                    'peak_queue_size': self.performance_metrics['peak_queue_size'],
+                    'assignment_failures': self.performance_metrics['assignment_failures'],
+                    'current_queue_size': self.job_queue.qsize()
+                }
+        except Exception as e:
+            logger.error(f"Error calculating performance metrics: {e}")
+            return {'error': str(e)}
+
+    def _update_performance_metrics(self, metric_type: str, **kwargs):
+        """Internal method to update performance metrics safely."""
+        try:
+            with self.metrics_lock:
+                if metric_type == 'job_completed':
+                    self.performance_metrics['jobs_processed'] += 1
+                    if kwargs.get('success', False):
+                        self.performance_metrics['jobs_successful'] += 1
+                    else:
+                        self.performance_metrics['jobs_failed'] += 1
+                    
+                    # Update GPU hours (duration in hours * GPU requirement)
+                    duration_hours = kwargs.get('duration_seconds', 0) / 3600.0
+                    gpu_requirement = kwargs.get('gpu_requirement', 0.0)
+                    self.performance_metrics['total_gpu_hours_allocated'] += duration_hours * gpu_requirement
+                    
+                elif metric_type == 'assignment_failure':
+                    self.performance_metrics['assignment_failures'] += 1
+                    
+                elif metric_type == 'queue_size_update':
+                    current_size = kwargs.get('size', 0)
+                    if current_size > self.performance_metrics['peak_queue_size']:
+                        self.performance_metrics['peak_queue_size'] = current_size
+                        
+        except Exception as e:
+            logger.error(f"Error updating performance metrics: {e}")
+
 
 # --- Command Line Interface ---
 # Helper function for CLI pause/resume to interact with the state file directly
@@ -1714,7 +1827,7 @@ def main():
         logger.warning(f"GPUtil detection failed: {e}. Defaulting --gpus may be inaccurate.")
         detected_gpus = 1 # Fallback, maybe 8 is better?
 
-    parser = argparse.ArgumentParser(description='GPU Job Scheduler v2.12 (Screen list fix)', formatter_class=argparse.RawTextHelpFormatter) # Version bump
+    parser = argparse.ArgumentParser(description='GPU Job Scheduler v2.13 (Job Logging)', formatter_class=argparse.RawTextHelpFormatter) # <<< MODIFIED >>> Version bump
     parser.add_argument('--state-file', type=str, default=DEFAULT_STATE_FILE, help=f'Path to scheduler state file (default: {DEFAULT_STATE_FILE}).')
     subparsers = parser.add_subparsers(dest='command', help='Available commands', required=True)
 
@@ -1738,7 +1851,7 @@ def main():
     add_parser = subparsers.add_parser('add', help='Helper to format a job line for the jobs file.')
     add_parser.add_argument('script', type=str, help='Path to the Python script.')
     add_parser.add_argument('--conda', type=str, help='Conda environment name (optional).')
-    add_parser.add_argument('--args', type=str, help='Script arguments (quote if needed). Include --llm <name> if applicable. DO NOT include --cuda.')
+    add_parser.add_argument('--args', type=str, help='Script arguments (quote if needed). Include --llm <n> if applicable. DO NOT include --cuda.')
     add_parser.add_argument('--priority', type=int, default=0, help='Job priority (lower=higher, default: 0).')
     add_parser.add_argument('--gpus', type=str, help='Allowed GPU IDs (e.g., "0,1", "0-3,5", optional).')
     add_parser.add_argument('--output-file', type=str, default=DEFAULT_JOBS_FILE, help=f'Append the formatted job line to this file (default: {DEFAULT_JOBS_FILE}). Set to "-" to print to stdout.')
@@ -1787,6 +1900,8 @@ def main():
             logger.info("Job file monitoring disabled.")
 
         logger.info(f"Starting scheduler: GPUs={args.gpus}, State File='{args.state_file}', LLM Config='{args.llm_config}'")
+        logger.info(f"Running jobs will be logged to: {RUNNING_JOBS_LOG_FILE}") # <<< ADDED >>>
+        logger.info(f"Completed jobs will be logged to: {DONE_JOBS_LOG_FILE}") # <<< ADDED >>>
 
         scheduler = GPUJobScheduler(
             num_gpus=args.gpus,
@@ -1848,6 +1963,9 @@ def main():
              print(f"{gpu['gpu_id']:<8} {gpu['state']:<15} {gpu['allocation']:<12} {gpu['memory_util']:<15} {gpu['load']:<15}")
         print("\nNote: Real-time utilization requires GPUtil. Status reflects state file content.")
         print("Job queue information is only available within the running scheduler process.")
+        # <<< ADDED >>> Also mention the log files
+        print(f"\nCheck '{RUNNING_JOBS_LOG_FILE}' and '{DONE_JOBS_LOG_FILE}' for job-specific logs.")
+
 
     elif args.command == 'pause':
         if not 0 <= args.gpu_id < num_gpus_for_control:
@@ -1876,3 +1994,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+# ```
+#

@@ -2,7 +2,7 @@
     "default_requirement": 1.0,
     "models": {"qwen25-7b": 1.0,
     "qwen25-3b": 1.0,
-    "qwen25-32b": 1.0,
+    "qwen25-32b": 2.0,
     "qwen25-72b": 3.0,
     "qwen2-7b": 1.0,
     "qwen2-72b": 2.0,

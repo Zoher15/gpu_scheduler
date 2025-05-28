@@ -1,56 +1,40 @@
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset genimage --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset genimage --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset genimage --batch_size 10 --wait 0 --num 1
+## qwen25-7b
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset genimage --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset genimage --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset genimage --batch_size 10 --wait 0 --num 1
+# d32k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot --dataset d32k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset d32k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset d32k --llm qwen25-7b --batch_size 20
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset df40 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset df40 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset df40 --batch_size 10 --wait 0 --num 1
+# df402k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot --dataset df402k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset df402k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset df402k --llm qwen25-7b --batch_size 20
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset df40 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset df40 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset df40 --batch_size 10 --wait 0 --num 1
+# genimage2k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot --dataset genimage2k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset genimage2k --llm qwen25-7b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_qwen.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset genimage2k --llm qwen25-7b --batch_size 20
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-7b --dataset d3 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-7b --dataset d3 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-7b --dataset d3 --batch_size 10 --wait 0 --num 1
+## llama3-11b
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-11b --dataset d3 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-11b --dataset d3 --batch_size 10 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-11b --dataset d3 --batch_size 10 --wait 0 --num 1
+# df402k
+6,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--num 5 --mode zeroshot --dataset df402k --llm llama3-11b --batch_size 1
+6,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--num 5 --mode zeroshot-cot --dataset df402k --llm llama3-11b --batch_size 1
+6,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--num 5 --mode zeroshot-2-artifacts --dataset df402k --llm llama3-11b --batch_size 1
 
-1,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-72b --dataset genimage2k --batch_size 5 --wait 0 --num 1
-1,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-72b --dataset genimage2k --batch_size 5 --wait 0 --num 1
-1,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-72b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+## llama3-11b
 
-2,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm llama3-90b --dataset genimage2k --batch_size 5 --wait 0 --num 1
-2,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm llama3-90b --dataset genimage2k --batch_size 5 --wait 0 --num 1
-2,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm llama3-90b --dataset genimage2k --batch_size 5 --wait 0 --num 1
+# d32k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot --dataset d32k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset d32k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset d32k --llm llama3-11b --batch_size 20
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-3-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-4-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-5-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-6-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-7-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-8-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-9-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-10-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-11-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-12-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-13-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-14-artifacts --llm qwen25-7b --dataset genimage2k --batch_size 20 --wait 0 --num 1
+# df402k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot --dataset df402k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset df402k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset df402k --llm llama3-11b --batch_size 20
 
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-3b --dataset d32k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-3b --dataset d32k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-3b --dataset d32k --batch_size 20 --wait 0 --num 1
-
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-3b --dataset df402k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-3b --dataset df402k --batch_size 20 --wait 0 --num 1
-0,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-2-artifacts --llm qwen25-3b --dataset df402k --batch_size 20 --wait 0 --num 1
-
-1,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot --llm qwen25-32b --dataset d32k --batch_size 5 --wait 0 --num 1
-1,/data3/zkachwal/visual-reasoning/experiments/ai-generation/evaluate_AI.py,table-talk,--mode zeroshot-cot --llm qwen25-32b --dataset d32k --batch_size 5 --wait 0 --num 1
-
+# genimage2k
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot --dataset genimage2k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-cot --dataset genimage2k --llm llama3-11b --batch_size 20
+5,/data3/zkachwal/Zero-shot-s2/experiments/evaluate_AI_llama.py,zeroshot_s2,--n 1 --mode zeroshot-2-artifacts --dataset genimage2k --llm llama3-11b --batch_size 20
