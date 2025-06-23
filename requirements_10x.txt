@@ -1,0 +1,137 @@
+# Ultra GPU Job Scheduler v3.0 - Production Requirements
+# ================================================================
+
+# Core Python Dependencies
+# ------------------------
+GPUtil>=1.4.0              # GPU monitoring and statistics
+psutil>=5.9.0               # System resource monitoring
+jsonschema>=4.17.0          # Configuration validation
+typing-extensions>=4.5.0    # Enhanced type hints for older Python
+
+# Logging and Monitoring
+# ----------------------
+structlog>=22.3.0           # Structured logging support (optional enhancement)
+
+# Job Queue and Execution
+# -----------------------
+# No additional dependencies - uses built-in queue, threading, subprocess
+
+# Configuration and Serialization
+# --------------------------------
+# Uses built-in json module
+
+# Testing Framework (Development/Optional)
+# -----------------------------------------
+pytest>=7.2.0              # Modern testing framework
+pytest-asyncio>=0.21.0     # Async testing support
+pytest-cov>=4.0.0          # Test coverage reporting
+pytest-mock>=3.10.0        # Enhanced mocking capabilities
+hypothesis>=6.70.0         # Property-based testing
+
+# Development Tools (Optional)
+# -----------------------------
+black>=23.1.0              # Code formatting
+isort>=5.12.0              # Import sorting
+mypy>=1.0.0                # Static type checking
+flake8>=6.0.0              # Code linting
+pre-commit>=3.1.0          # Git hooks for code quality
+
+# Security and Validation
+# ------------------------
+# Uses built-in hashlib, pathlib for security features
+
+# Performance Monitoring (Optional)
+# ----------------------------------
+memory-profiler>=0.60.0    # Memory usage profiling
+line-profiler>=4.0.0       # Line-by-line performance profiling
+
+# Documentation (Optional)
+# -------------------------
+sphinx>=6.1.0              # Documentation generation
+sphinx-rtd-theme>=1.2.0    # Read the Docs theme
+myst-parser>=0.19.0        # Markdown support for Sphinx
+
+# Production Deployment (Optional)
+# ---------------------------------
+gunicorn>=20.1.0           # WSGI server (if adding web interface)
+supervisor>=4.2.5          # Process supervision
+systemd-python>=235        # Systemd integration
+
+# Platform-Specific (Linux Production)
+# -------------------------------------
+# These may be system packages rather than pip packages:
+# - screen (GNU Screen)
+# - script (BSD script command)
+# Install via: sudo apt-get install screen bsdutils
+
+# Version Constraints for Stability
+# ----------------------------------
+# Python >= 3.8 required for:
+# - typing features (Literal, Protocol, TypedDict)
+# - dataclasses with default_factory
+# - pathlib features
+# - asyncio improvements
+
+# Optional Enhanced Dependencies
+# ------------------------------
+# Uncomment these for additional features:
+
+# rich>=13.3.0               # Rich terminal output and progress bars
+# click>=8.1.0               # Enhanced CLI framework
+# pydantic>=1.10.0           # Advanced data validation
+# redis>=4.5.0               # Distributed state management
+# prometheus-client>=0.16.0   # Prometheus metrics export
+# grafana-api>=1.0.3         # Grafana dashboard integration
+
+# Development Dependencies Only
+# -----------------------------
+# These are not needed for production deployment:
+# jupyter>=1.0.0             # Interactive development
+# ipython>=8.10.0            # Enhanced Python shell
+# pdbpp>=0.10.3              # Enhanced debugger
+
+# Notes for Production Deployment:
+# =================================
+# 
+# 1. Minimal Installation:
+#    pip install GPUtil psutil jsonschema
+#
+# 2. Standard Installation:
+#    pip install -r requirements_10x.txt
+#
+# 3. Development Installation:
+#    pip install -r requirements_10x.txt -r requirements_dev.txt
+#
+# 4. System Dependencies (Ubuntu/Debian):
+#    sudo apt-get install screen bsdutils python3-dev
+#
+# 5. GPU Drivers:
+#    Ensure NVIDIA drivers and CUDA are properly installed
+#    GPUtil requires nvidia-ml-py or similar GPU monitoring libs
+#
+# 6. Python Version:
+#    Python 3.8+ required for full feature compatibility
+#    Python 3.10+ recommended for best performance
+#
+# 7. Virtual Environment (Recommended):
+#    python3 -m venv gpu_scheduler_env
+#    source gpu_scheduler_env/bin/activate
+#    pip install --upgrade pip
+#    pip install -r requirements_10x.txt
+#
+# 8. Production Considerations:
+#    - Pin exact versions for production deployments
+#    - Use pip-tools or Poetry for dependency management
+#    - Consider using conda for scientific computing environments
+#    - Test thoroughly in staging environment before production
+#
+# 9. Security Considerations:
+#    - Regularly update dependencies for security patches
+#    - Use pip-audit or safety to check for vulnerabilities
+#    - Consider using private PyPI mirror for enterprise environments
+#
+# 10. Performance Notes:
+#     - psutil provides better system monitoring than basic os module
+#     - GPUtil is optimized for NVIDIA GPU monitoring
+#     - jsonschema provides fast configuration validation
+#     - Built-in modules (threading, queue, json) are highly optimized 
