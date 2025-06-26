@@ -60,3 +60,15 @@
 4,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-vl-7b-inst --dataset test --mode zeroshot-cot --context subreddit-post-thread --vlm --batch_size 2
 5,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-vl-32b-inst --dataset test --mode zeroshot --context subreddit-post-thread --vlm --batch_size 5
 5,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-vl-32b-inst --dataset test --mode zeroshot-cot --context subreddit-post-thread --vlm --batch_size 5
+
+
+##################################
+Done: # Reddit evaluation experiments
+
+# context  subreddit-post-thread
+0,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-3b-inst --dataset test --mode zeroshot --context subreddit-post-thread --batch_size 30
+0,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-3b-inst --dataset test --mode zeroshot-cot --context subreddit-post-thread --batch_size 30
+1,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-7b-inst --dataset test --mode zeroshot --context subreddit-post-thread --batch_size 20
+1,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-7b-inst --dataset test --mode zeroshot-cot --context subreddit-post-thread --batch_size 20
+2,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-32b-inst --dataset test --mode zeroshot --context subreddit-post-thread --batch_size 10
+2,/data3/zkachwal/Zero-shot-mod/experiments/evaluate_reddit.py,zeroshot_mod,--llm qwen2.5-32b-inst --dataset test --mode zeroshot-cot --context subreddit-post-thread --batch_size 10

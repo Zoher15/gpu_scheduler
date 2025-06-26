@@ -3,9 +3,9 @@
     "models": {
         "qwen2.5-3b-inst": 0.5,
         "qwen2.5-7b-inst": 1.0,
-        "qwen2.5-32b-inst": 2.0,
+        "qwen2.5-32b-inst": 1.0,
         "qwen2.5-vl-3b-inst": 1.0,
         "qwen2.5-vl-7b-inst": 1.0,
-        "qwen2.5-vl-32b-inst": 2.0
+        "qwen2.5-vl-32b-inst": 1.0
     }
 }

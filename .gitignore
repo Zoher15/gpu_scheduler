@@ -1,1 +1,9 @@
-gpu_scheduler.log
+# Ignore everything except scheduler.py and llm_config.json
+*
+
+# But don't ignore these specific files
+!scheduler.py
+!llm_config.json
+
+# Don't ignore .gitignore itself
+!.gitignore
