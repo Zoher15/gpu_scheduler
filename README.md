@@ -2,6 +2,10 @@
 
 A sophisticated Python-based GPU job scheduling system that intelligently manages GPU resources across multiple jobs, with support for fractional GPU allocation, LLM-aware scheduling, and GNU Screen integration.
 
+## 🤖 Development
+
+This GPU scheduler was vibe coded with the assistance of Gemini 2.5 Pro and Claude Sonnet 4.
+
 ## 🚀 Features
 
 ### Core Scheduling Features
