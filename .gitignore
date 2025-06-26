@@ -1,9 +1,10 @@
-# Ignore everything except scheduler.py and llm_config.json
+# Ignore everything except scheduler.py, llm_config.json, and README.md
 *
 
 # But don't ignore these specific files
 !scheduler.py
 !llm_config.json
+!README.md
 
 # Don't ignore .gitignore itself
 !.gitignore
