@@ -600,32 +600,86 @@ class GPUJobScheduler:
                             for gpu_id in candidate_indices:
                                 current_allocation = self.gpu_status[gpu_id]
                                 if (current_allocation + required_gpus) <= (1.0 + GPU_ALLOCATION_PRECISION):
+                                    # ALWAYS perform real-time check when GPU snapshot is available
+                                    # This prevents scheduling on recently freed but still-busy GPUs
                                     passes_realtime_check = True
-                                    # Only perform real-time check if GPU has existing allocation and snapshot is available
-                                    if current_allocation > GPU_ALLOCATION_PRECISION:
-                                        if gpus_util_snapshot:
-                                            if gpu_id < len(gpus_util_snapshot):
-                                                gpu = gpus_util_snapshot[gpu_id]
-                                                passes_mem = gpu.memoryUtil < self.gpu_memory_threshold
-                                                passes_load = gpu.load < self.gpu_load_threshold
-                                                passes_realtime_check = passes_mem and passes_load
-                                                logger.debug(f"GPU Check [{gpu_id}] Realtime: Mem={gpu.memoryUtil:.2f}<{self.gpu_memory_threshold}({passes_mem}), Load={gpu.load:.2f}<{self.gpu_load_threshold}({passes_load})")
-                                            else:
-                                                passes_realtime_check = False # Mismatch
-                                                logger.warning(f"GPU Check [{gpu_id}] Realtime: Mismatch between configured GPUs ({self.num_gpus}) and GPUtil snapshot ({len(gpus_util_snapshot)}).")
+                                    if gpus_util_snapshot:
+                                        if gpu_id < len(gpus_util_snapshot):
+                                            gpu = gpus_util_snapshot[gpu_id]
+                                            
+                                            # Dynamic threshold calculation based on remaining capacity
+                                            # More robust version that handles edge cases
+                                            remaining_capacity = max(0.0, 1.0 - (current_allocation + required_gpus))
+                                            
+                                            # Calculate utilization headroom - how much GPU is actually being used
+                                            utilization_headroom = max(0.0, 1.0 - max(gpu.memoryUtil, gpu.load))
+                                            
+                                            # CONSERVATIVE APPROACH: Prioritize actual utilization over allocation headroom
+                                            # Never be too lenient if GPU is already heavily utilized
+                                            TOLERANCE = 0.01  # Floating point tolerance
+                                            
+                                            # PRIMARY CHECK: Current utilization must have reasonable headroom
+                                            max_util = max(gpu.memoryUtil, gpu.load)
+                                            utilization_safety_factor = 1.0
+                                            
+                                            if max_util >= (0.9 - TOLERANCE):  # 90%+ utilized - be very strict
+                                                utilization_safety_factor = 0.85  # Only 85% of base threshold
+                                            elif max_util >= (0.8 - TOLERANCE):  # 80%+ utilized - be strict  
+                                                utilization_safety_factor = 0.95  # 95% of base threshold
+                                            elif max_util >= (0.6 - TOLERANCE):  # 60%+ utilized - be cautious
+                                                utilization_safety_factor = 1.0   # Use base threshold exactly
+                                            else:  # Low utilization - can be slightly lenient
+                                                utilization_safety_factor = 1.1   # Allow 10% higher
+                                            
+                                            # SECONDARY CHECK: Only add allocation-based leniency if utilization is low AND there's existing allocation
+                                            allocation_bonus = 1.0
+                                            if max_util < (0.6 - TOLERANCE) and current_allocation > GPU_ALLOCATION_PRECISION:  # Only for existing allocations with low util
+                                                if remaining_capacity >= (0.4 - TOLERANCE):  # 40%+ allocation left
+                                                    allocation_bonus = 1.05  # Small 5% bonus
+                                                elif remaining_capacity >= (0.2 - TOLERANCE):  # 20%+ allocation left
+                                                    allocation_bonus = 1.02  # Tiny 2% bonus
+                                        
+                                            # Combine factors - but utilization safety always dominates
+                                            combined_factor = utilization_safety_factor * allocation_bonus
+                                            effective_mem_threshold = min(0.95, max(0.5, self.gpu_memory_threshold * combined_factor))
+                                            effective_load_threshold = min(0.95, max(0.5, self.gpu_load_threshold * combined_factor))
+                                            
+                                            passes_mem = gpu.memoryUtil < effective_mem_threshold
+                                            passes_load = gpu.load < effective_load_threshold
+                                            passes_realtime_check = passes_mem and passes_load
+                                            
+                                            check_type = "FreshGPU" if current_allocation <= GPU_ALLOCATION_PRECISION else "ActiveGPU"
+                                            logger.debug(f"GPU Check [{gpu_id}] {check_type}: Mem={gpu.memoryUtil:.2f}<{effective_mem_threshold:.2f}({passes_mem}), Load={gpu.load:.2f}<{effective_load_threshold:.2f}({passes_load}), MaxUtil={max_util:.2f}, SafetyFactor={utilization_safety_factor:.2f}, AllocBonus={allocation_bonus:.2f}, RemCap={remaining_capacity:.3f}")
                                         else:
-                                            passes_realtime_check = False # Cannot verify
-                                            logger.warning(f"GPU Check [{gpu_id}] Realtime: Skipping check as GPUtil snapshot failed.")
+                                            passes_realtime_check = False # Mismatch
+                                            logger.warning(f"GPU Check [{gpu_id}] Realtime: Mismatch between configured GPUs ({self.num_gpus}) and GPUtil snapshot ({len(gpus_util_snapshot)}).")
+                                    else:
+                                        passes_realtime_check = False # Cannot verify without snapshot
+                                        logger.warning(f"GPU Check [{gpu_id}] Realtime: Skipping check as GPUtil snapshot failed.")
 
                                     # If passes check (or no check needed because GPU is free)
                                     if passes_realtime_check:
-                                        logger.info(f"Found suitable fractional/single GPU {gpu_id} for job ID {job_id} (Req: {required_gpus:.2f}, CurrentAlloc: {current_allocation:.2f})")
-                                        self.gpu_status[gpu_id] += required_gpus # Allocate
-                                        assigned_gpu_ids = [gpu_id]
-                                        found_gpu = True
-                                        break # Found a suitable GPU, break inner loop
+                                        # Double-check capacity hasn't changed due to race conditions
+                                        if (self.gpu_status[gpu_id] + required_gpus) <= (1.0 + GPU_ALLOCATION_PRECISION):
+                                            # FINAL SAFETY CHECK: Ensure we're not adding to an over-utilized GPU
+                                            if current_allocation > GPU_ALLOCATION_PRECISION and gpus_util_snapshot:
+                                                if gpu_id < len(gpus_util_snapshot):
+                                                    final_gpu = gpus_util_snapshot[gpu_id]
+                                                    final_max_util = max(final_gpu.memoryUtil, final_gpu.load)
+                                                    # If GPU is >85% utilized and we're adding substantial load (>0.1), be extra careful
+                                                    if final_max_util > 0.85 and required_gpus > 0.1:
+                                                        logger.debug(f"GPU Check [{gpu_id}] FINAL SAFETY: High utilization ({final_max_util:.2f}) + substantial job ({required_gpus:.2f}) - rejecting for safety")
+                                                        continue # Skip this GPU
+                                                        
+                                            logger.info(f"Found suitable fractional/single GPU {gpu_id} for job ID {job_id} (Req: {required_gpus:.2f}, CurrentAlloc: {current_allocation:.2f})")
+                                            self.gpu_status[gpu_id] += required_gpus # Allocate
+                                            assigned_gpu_ids = [gpu_id]
+                                            found_gpu = True
+                                            break # Found a suitable GPU, break inner loop
+                                        else:
+                                            logger.debug(f"GPU Check [{gpu_id}] capacity changed during evaluation for job {job_id} - skipping")
                                     else:
-                                         logger.debug(f"GPU Check [{gpu_id}] failed real-time check for fractional job {job_id}.")
+                                         logger.debug(f"GPU Check [{gpu_id}] failed dynamic real-time check for fractional job {job_id}.")
                                 else:
                                      logger.debug(f"GPU Check [{gpu_id}] insufficient capacity for job ID {job_id} (Req: {required_gpus:.2f}, CurrentAlloc: {current_allocation:.2f})")
 
@@ -649,10 +703,15 @@ class GPUJobScheduler:
                                         passes_realtime_check = True
                                         if gpu_id < len(gpus_util_snapshot):
                                             gpu = gpus_util_snapshot[gpu_id]
-                                            passes_mem = gpu.memoryUtil < self.gpu_memory_threshold
-                                            passes_load = gpu.load < self.gpu_load_threshold
+                                            # For multi-GPU jobs, use standard thresholds since they need full GPUs
+                                            # But be slightly more lenient since these are completely free GPUs
+                                            effective_mem_threshold = min(0.90, self.gpu_memory_threshold + 0.1)
+                                            effective_load_threshold = min(0.90, self.gpu_load_threshold + 0.1)
+                                            
+                                            passes_mem = gpu.memoryUtil < effective_mem_threshold
+                                            passes_load = gpu.load < effective_load_threshold
                                             passes_realtime_check = passes_mem and passes_load
-                                            logger.debug(f"GPU Check [{gpu_id}] Realtime (Multi-GPU): Mem={gpu.memoryUtil:.2f}<{self.gpu_memory_threshold}({passes_mem}), Load={gpu.load:.2f}<{self.gpu_load_threshold}({passes_load})")
+                                            logger.debug(f"GPU Check [{gpu_id}] Multi-GPU: Mem={gpu.memoryUtil:.2f}<{effective_mem_threshold:.2f}({passes_mem}), Load={gpu.load:.2f}<{effective_load_threshold:.2f}({passes_load})")
                                         else:
                                             passes_realtime_check = False
                                             logger.warning(f"GPU Check [{gpu_id}] Realtime (Multi-GPU): Mismatch between configured GPUs ({self.num_gpus}) and GPUtil snapshot ({len(gpus_util_snapshot)}).")
