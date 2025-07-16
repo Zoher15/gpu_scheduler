@@ -87,6 +87,7 @@ class Job:
     
     # Execution details
     conda_env: Optional[str] = None
+    execution_type: str = "python"  # "python", "torchrun-8gpu", "torchrun-4gpu", etc.
     args: List[str] = field(default_factory=list)
     
     # GPU requirements
@@ -114,10 +115,7 @@ class Job:
     @property
     def is_torchrun_job(self) -> bool:
         """Check if this is a torchrun distributed job"""
-        return (self.args and 
-                any(arg.startswith('--nnodes') or arg.startswith('--nproc-per-node') 
-                    for arg in self.args) and
-                '--cuda' in self.args)
+        return self.execution_type.startswith('torchrun')
     
     @property
     def duration(self) -> Optional[float]:
@@ -133,6 +131,7 @@ class Job:
             priority=self.priority,
             script_path=self.script_path,
             conda_env=self.conda_env,
+            execution_type=self.execution_type,
             args=self.args,
             allowed_gpus=self.allowed_gpus,
             required_gpus=self.required_gpus,
@@ -153,6 +152,7 @@ class Job:
             priority=self.priority,
             script_path=self.script_path,
             conda_env=self.conda_env,
+            execution_type=self.execution_type,
             args=self.args,
             allowed_gpus=self.allowed_gpus,
             required_gpus=self.required_gpus,
@@ -254,6 +254,7 @@ def calculate_job_hash(job: Job) -> str:
     hasher.update(str(job.priority).encode())
     hasher.update(job.script_path.encode())
     hasher.update(str(job.conda_env or '').encode())
+    hasher.update(job.execution_type.encode())
     hasher.update(str(sorted(job.args)).encode())
     hasher.update(str(sorted(job.allowed_gpus or [])).encode())
     hasher.update(str(job.required_gpus).encode())
@@ -286,10 +287,22 @@ class CommandExecutor:
         self.logger = logging.getLogger("CommandExecutor")
     
     def build_command(self, job: Job) -> List[str]:
-        """Build command list based on job type"""
-        if job.is_torchrun_job:
-            return ["torchrun"] + job.args
+        """Build command list based on execution type"""
+        if job.execution_type == "python":
+            return ["python", "-u", job.script_path] + job.args
+        elif job.execution_type.startswith("torchrun"):
+            # Parse GPU count from execution type (e.g., "torchrun-8gpu" -> 8)
+            if "-" in job.execution_type and "gpu" in job.execution_type:
+                gpu_count = job.execution_type.split("-")[1].replace("gpu", "")
+                torchrun_args = [f"--nnodes=1", f"--nproc-per-node={gpu_count}"]
+            else:
+                # Fallback for "torchrun" without GPU specification
+                torchrun_args = ["--nnodes=1", "--nproc-per-node=1"]
+            
+            return ["torchrun"] + torchrun_args + [job.script_path] + job.args
         else:
+            # Default to python execution
+            self.logger.warning(f"Unknown execution type '{job.execution_type}', defaulting to python")
             return ["python", "-u", job.script_path] + job.args
     
     def create_execution_script(self, job: Job, env: Dict[str, str]) -> Path:
@@ -549,11 +562,15 @@ class JobParser:
         config_data = safe_json_load(Path(self.config.llm_config_file), {})
         return config_data.get("models", {})
     
-    def _get_gpu_requirement(self, llm_name: Optional[str], args: List[str]) -> float:
+    def _get_gpu_requirement(self, execution_type: str, llm_name: Optional[str]) -> float:
         """Determine GPU requirement for job"""
         # Check for torchrun job first
-        if self._is_torchrun_args(args):
-            return 8.0  # TODO: Make configurable
+        if execution_type.startswith("torchrun"):
+            if "-" in execution_type and "gpu" in execution_type:
+                gpu_count = execution_type.split("-")[1].replace("gpu", "")
+                return float(gpu_count)
+            else:
+                return 1.0  # Default for torchrun without GPU specification
         
         # Use LLM config
         if llm_name and llm_name in self.llm_requirements:
@@ -561,41 +578,31 @@ class JobParser:
         
         return self.config.default_llm_requirement
     
-    def _is_torchrun_args(self, args: List[str]) -> bool:
-        """Check if arguments indicate torchrun job"""
-        has_torchrun = any(arg.startswith('--nnodes') or arg.startswith('--nproc-per-node') 
-                          for arg in args)
-        has_cuda = '--cuda' in args
-        return has_torchrun and has_cuda
     
     def parse_job_line(self, line: str, line_num: int) -> Optional[Job]:
-        """Parse single job line with robust CSV handling"""
+        """Parse single job line with new format: priority,script_path,conda_env,execution_type,args"""
         line = line.strip()
         if not line or line.startswith('#'):
             return None
         
         try:
-            # Smart CSV parsing based on content
-            if '--cuda' in line:
-                # Torchrun format: gpu_id,script,env,args (4 fields)
-                parts = [p.strip() for p in line.split(',', maxsplit=3)]
-            else:
-                # Standard format: priority,script,env,args,allowed_gpus (5 fields)
-                parts = [p.strip() for p in line.split(',', maxsplit=4)]
+            # New format: priority,script_path,conda_env,execution_type,args,allowed_gpus
+            parts = [p.strip() for p in line.split(',', maxsplit=5)]
             
-            if len(parts) < 2:
-                raise ValueError("Need at least priority and script")
+            if len(parts) < 4:
+                raise ValueError("Need at least priority, script_path, conda_env, and execution_type")
             
             priority = int(parts[0])
             script_path = parts[1]
-            conda_env = parts[2] if len(parts) > 2 and parts[2] else None
-            args_str = parts[3] if len(parts) > 3 and parts[3] else ""
-            allowed_gpus_str = parts[4] if len(parts) > 4 and parts[4] else None
+            conda_env = parts[2] if parts[2] else None
+            execution_type = parts[3]
+            args_str = parts[4] if len(parts) > 4 and parts[4] else ""
+            allowed_gpus_str = parts[5] if len(parts) > 5 and parts[5] else None
             
             # Parse arguments
             args = shlex.split(args_str) if args_str else []
             llm_name = extract_arg_value(args, '--llm')
-            required_gpus = self._get_gpu_requirement(llm_name, args)
+            required_gpus = self._get_gpu_requirement(execution_type, llm_name)
             
             # Parse allowed GPUs
             allowed_gpus = None
@@ -607,6 +614,7 @@ class JobParser:
                 priority=priority,
                 script_path=script_path,
                 conda_env=conda_env,
+                execution_type=execution_type,
                 args=args,
                 allowed_gpus=allowed_gpus,
                 required_gpus=required_gpus,
