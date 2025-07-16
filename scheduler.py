@@ -124,43 +124,37 @@ class Job:
             return (self.end_time - self.start_time).total_seconds()
         return None
     
+    def _copy_with_changes(self, **changes) -> 'Job':
+        """Create copy with specified field changes"""
+        fields = {
+            'job_id': self.job_id,
+            'priority': self.priority,
+            'script_path': self.script_path,
+            'conda_env': self.conda_env,
+            'execution_type': self.execution_type,
+            'args': self.args,
+            'allowed_gpus': self.allowed_gpus,
+            'required_gpus': self.required_gpus,
+            'llm_name': self.llm_name,
+            'job_hash': self.job_hash,
+            'original_line': self.original_line,
+            'status': self.status,
+            'assigned_gpus': self.assigned_gpus,
+            'start_time': self.start_time,
+            'end_time': self.end_time
+        }
+        fields.update(changes)
+        return Job(**fields)
+    
     def with_assigned_gpus(self, gpu_ids: List[int]) -> 'Job':
         """Return new job with assigned GPUs"""
-        return Job(
-            job_id=self.job_id,
-            priority=self.priority,
-            script_path=self.script_path,
-            conda_env=self.conda_env,
-            execution_type=self.execution_type,
-            args=self.args,
-            allowed_gpus=self.allowed_gpus,
-            required_gpus=self.required_gpus,
-            llm_name=self.llm_name,
-            job_hash=self.job_hash,
-            original_line=self.original_line,
-            status=self.status,
-            assigned_gpus=gpu_ids,
-            start_time=self.start_time,
-            end_time=self.end_time
-        )
+        return self._copy_with_changes(assigned_gpus=gpu_ids)
     
     def with_status(self, status: JobStatus, timestamp: Optional[datetime] = None) -> 'Job':
         """Return new job with updated status"""
         ts = timestamp or datetime.now()
-        return Job(
-            job_id=self.job_id,
-            priority=self.priority,
-            script_path=self.script_path,
-            conda_env=self.conda_env,
-            execution_type=self.execution_type,
-            args=self.args,
-            allowed_gpus=self.allowed_gpus,
-            required_gpus=self.required_gpus,
-            llm_name=self.llm_name,
-            job_hash=self.job_hash,
-            original_line=self.original_line,
+        return self._copy_with_changes(
             status=status,
-            assigned_gpus=self.assigned_gpus,
             start_time=ts if status == JobStatus.RUNNING else self.start_time,
             end_time=ts if status in [JobStatus.COMPLETED, JobStatus.FAILED] else self.end_time
         )
@@ -286,10 +280,20 @@ class CommandExecutor:
         self.conda_manager = conda_manager
         self.logger = logging.getLogger("CommandExecutor")
     
+    def _add_cuda_args_if_needed(self, cmd: List[str], job: Job) -> List[str]:
+        """Add CUDA args if GPUs assigned and not already specified"""
+        if job.assigned_gpus and not any('--cuda' in str(arg) for arg in job.args):
+            cuda_arg = ','.join(map(str, job.assigned_gpus))
+            cmd.extend(['--cuda', cuda_arg])
+        return cmd
+    
     def build_command(self, job: Job) -> List[str]:
         """Build command list based on execution type"""
         if job.execution_type == "python":
-            return ["python", "-u", job.script_path] + job.args
+            cmd = ["python", "-u", job.script_path]
+            cmd = self._add_cuda_args_if_needed(cmd, job)
+            cmd.extend(job.args)
+            return cmd
         elif job.execution_type.startswith("torchrun"):
             # Parse GPU count from execution type (e.g., "torchrun-8gpu" -> 8)
             if "-" in job.execution_type and "gpu" in job.execution_type:
@@ -303,7 +307,10 @@ class CommandExecutor:
         else:
             # Default to python execution
             self.logger.warning(f"Unknown execution type '{job.execution_type}', defaulting to python")
-            return ["python", "-u", job.script_path] + job.args
+            cmd = ["python", "-u", job.script_path]
+            cmd = self._add_cuda_args_if_needed(cmd, job)
+            cmd.extend(job.args)
+            return cmd
     
     def create_execution_script(self, job: Job, env: Dict[str, str]) -> Path:
         """Create execution script with conda activation"""
@@ -414,15 +421,36 @@ class GPUManager:
         self.allocations: List[float] = [0.0] * num_gpus
         self.paused_gpus: Set[int] = set()
     
-    def get_gpu_info(self) -> List[GPUInfo]:
-        """Get current GPU information"""
+    def get_gpu_info(self, reconcile_state: bool = False) -> List[GPUInfo]:
+        """Get current GPU information and optionally reconcile state with live data"""
         gpu_utils = []
+        freed_count = 0
+        
         try:
             gpu_utils = GPUtil.getGPUs()
         except Exception as e:
             self.logger.error(f"Failed to get GPU utilization: {e}")
         
         with self.lock:
+            # Reconcile state if requested - only for very low utilization to avoid false positives
+            if reconcile_state and gpu_utils:
+                for i in range(self.num_gpus):
+                    if (i not in self.paused_gpus and 
+                        self.allocations[i] > 0 and 
+                        i < len(gpu_utils)):
+                        
+                        gpu = gpu_utils[i]
+                        # Only reset if GPU shows extremely low utilization for a while
+                        # This is conservative to avoid disrupting fractional allocations
+                        if gpu.memoryUtil < 0.05 and gpu.load < 0.05:
+                            self.logger.info(f"GPU {i} appears completely idle (mem: {gpu.memoryUtil:.1%}, "
+                                           f"load: {gpu.load:.1%}), resetting allocation from {self.allocations[i]:.2f}")
+                            self.allocations[i] = 0.0
+                            freed_count += 1
+                
+                if freed_count > 0:
+                    self.logger.info(f"Reconciled {freed_count} completely idle GPUs")
+            
             return [
                 GPUInfo(
                     gpu_id=i,
@@ -504,9 +532,13 @@ class GPUManager:
                 self.allocations[gpu_id] = max(0.0, self.allocations[gpu_id] - allocation)
             return True
     
+    def _validate_gpu_id(self, gpu_id: int) -> bool:
+        """Validate GPU ID is within range"""
+        return 0 <= gpu_id < self.num_gpus
+    
     def pause_gpu(self, gpu_id: int) -> bool:
         """Pause GPU"""
-        if not 0 <= gpu_id < self.num_gpus:
+        if not self._validate_gpu_id(gpu_id):
             return False
         with self.lock:
             self.paused_gpus.add(gpu_id)
@@ -514,7 +546,7 @@ class GPUManager:
     
     def resume_gpu(self, gpu_id: int) -> bool:
         """Resume GPU"""
-        if not 0 <= gpu_id < self.num_gpus:
+        if not self._validate_gpu_id(gpu_id):
             return False
         with self.lock:
             self.paused_gpus.discard(gpu_id)
@@ -665,6 +697,10 @@ class GPUJobScheduler:
         self.managed_hashes: Set[str] = set()
         self.stop_event = threading.Event()
         
+        # Thread safety locks
+        self.scheduler_lock = threading.Lock()  # Protects running_jobs and managed_hashes
+        self.state_file_lock = threading.Lock()  # Protects state file operations
+        
         # Threads
         self.workers: List[threading.Thread] = []
         self.monitor_thread: Optional[threading.Thread] = None
@@ -678,16 +714,20 @@ class GPUJobScheduler:
         self.gpu_manager.load_state(state)
     
     def _save_state(self):
-        """Save scheduler state"""
-        state = self.gpu_manager.get_state()
-        safe_json_save(Path(self.config.state_file), state)
+        """Save scheduler state with thread safety"""
+        with self.state_file_lock:
+            state = self.gpu_manager.get_state()
+            safe_json_save(Path(self.config.state_file), state)
     
     def add_job(self, job: Job) -> bool:
-        """Add job to queue"""
-        if job.job_hash in self.managed_hashes:
-            return False
+        """Add job to queue with thread safety"""
+        with self.scheduler_lock:
+            if job.job_hash in self.managed_hashes:
+                return False
+            
+            self.managed_hashes.add(job.job_hash)
         
-        self.managed_hashes.add(job.job_hash)
+        # Queue operations are thread-safe, do outside lock
         self.job_queue.put((job.priority, job.job_id, job))
         
         self.logger.info(f"Added job {job.job_id}: {Path(job.script_path).name} "
@@ -724,9 +764,8 @@ class GPUJobScheduler:
                 success = self._try_allocate_and_run(job)
                 
                 if not success:
-                    # Re-queue job
+                    # Re-queue job and continue immediately
                     self.job_queue.put((job.priority, job_id, job))
-                    time.sleep(self.config.assignment_retry_wait)
                 
                 self.job_queue.task_done()
                 
@@ -737,7 +776,8 @@ class GPUJobScheduler:
                 self.job_queue.task_done()
     
     def _try_allocate_and_run(self, job: Job) -> bool:
-        """Try to allocate GPUs and run job"""
+        """Try to allocate GPUs and run job atomically"""
+        # Critical section: check availability and allocate atomically
         can_allocate, gpu_ids = self.gpu_manager.can_allocate(job)
         
         if not can_allocate:
@@ -747,12 +787,13 @@ class GPUJobScheduler:
         if not self.gpu_manager.allocate(job, gpu_ids):
             return False
         
-        # Save state
-        self._save_state()
-        
-        # Update job and start execution
+        # Update job tracking atomically with GPU allocation
         job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
-        self.running_jobs[job.job_id] = job
+        with self.scheduler_lock:
+            self.running_jobs[job.job_id] = job
+        
+        # Save state and start execution outside critical sections
+        self._save_state()
         
         # Start job execution thread
         thread = threading.Thread(
@@ -793,12 +834,12 @@ class GPUJobScheduler:
         # Deallocate GPUs
         self.gpu_manager.deallocate(job, job.assigned_gpus)
         
-        # Remove from running jobs
-        self.running_jobs.pop(job.job_id, None)
-        
-        # Remove from managed hashes if failed (allow retry)
-        if final_status == JobStatus.FAILED:
-            self.managed_hashes.discard(job.job_hash)
+        # Remove from tracking collections atomically
+        with self.scheduler_lock:
+            self.running_jobs.pop(job.job_id, None)
+            # Remove from managed hashes if failed (allow retry)
+            if final_status == JobStatus.FAILED:
+                self.managed_hashes.discard(job.job_hash)
         
         # Save state
         self._save_state()
@@ -832,16 +873,30 @@ class GPUJobScheduler:
         self.monitor_thread.start()
     
     def _monitor_files(self):
-        """Monitor job files for changes"""
-        last_check = time.time()
+        """Monitor job files for changes and reconcile GPU state"""
+        last_file_check = time.time()
+        last_state_check = time.time()
         
         while not self.stop_event.is_set():
-            if time.time() - last_check >= self.config.file_monitor_interval:
+            current_time = time.time()
+            
+            # Check for new jobs periodically
+            if current_time - last_file_check >= self.config.file_monitor_interval:
                 try:
                     self.load_jobs_from_file(self.config.jobs_file)
-                    last_check = time.time()
+                    last_file_check = current_time
                 except Exception as e:
                     self.logger.error(f"File monitor error: {e}")
+            
+            # Reconcile GPU state periodically
+            if current_time - last_state_check >= self.config.state_check_interval:
+                try:
+                    # Use enhanced get_gpu_info to reconcile and save state
+                    self.gpu_manager.get_gpu_info(reconcile_state=True)
+                    self._save_state()
+                    last_state_check = current_time
+                except Exception as e:
+                    self.logger.error(f"State reconciliation error: {e}")
             
             time.sleep(1)
     
@@ -864,7 +919,11 @@ class GPUJobScheduler:
         self.logger.info("Scheduler stopped")
     
     def get_status(self) -> Dict[str, Any]:
-        """Get scheduler status"""
+        """Get scheduler status with thread safety"""
+        # Get running job count safely
+        with self.scheduler_lock:
+            running_count = len(self.running_jobs)
+        
         return {
             "gpus": [
                 {
@@ -878,7 +937,7 @@ class GPUJobScheduler:
             ],
             "jobs": {
                 "queued": self.job_queue.qsize(),
-                "running": len(self.running_jobs)
+                "running": running_count
             }
         }
 
