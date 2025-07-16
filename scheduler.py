@@ -268,6 +268,10 @@ def run_command(cmd: List[str], capture_output: bool = True, check: bool = True,
         logging.getLogger("GPUJobScheduler").error(f"Command failed: {' '.join(cmd)}, Error: {e}")
         raise
 
+def get_screen_name(job_id: str) -> str:
+    """Generate screen session name for job - shared across all classes"""
+    return f"job_{job_id[:8]}"
+
 
 # =============================================================================
 # COMMAND EXECUTION (DRY CONSOLIDATION)
@@ -321,16 +325,20 @@ class CommandExecutor:
             f"# Original: {job.original_line or 'N/A'}",
             "set -e",
             f"echo 'Job {job.job_id} starting at $(date)'",
-            f"echo 'GPU(s): {env.get('CUDA_VISIBLE_DEVICES', 'N/A')}'"
+            f"echo 'GPU(s): {env.get('CUDA_VISIBLE_DEVICES', 'N/A')}'",
+            f"echo 'Working directory: $(pwd)'",
+            f"echo 'Environment check:'",
+            "env | grep -E '(CUDA|PATH)' || true"
         ]
         
         # Add conda activation if needed
         if job.conda_env:
             script_lines.extend(self.conda_manager.get_activation_commands(job.conda_env))
         
-        # Add main command
+        # Add main command with output redirection for debugging
         cmd = self.build_command(job)
         script_lines.append(shlex.join(cmd))
+        script_lines.append(f"echo 'Job {job.job_id} completed at $(date)'")
         
         # Create temp script
         script_path = Path(f"/tmp/job_{job.job_id[:8]}.sh")
@@ -342,17 +350,18 @@ class CommandExecutor:
     def execute_job(self, job: Job, env: Dict[str, str]) -> subprocess.Popen:
         """Execute job in screen session with proper environment"""
         script_path = self.create_execution_script(job, env)
-        screen_name = f"job_{job.job_id[:8]}"
+        screen_name = get_screen_name(job.job_id)
         
         self.logger.info(f"Executing job {job.job_id}: {job.script_path}")
         self.logger.info(f"Screen session: {screen_name}")
+        self.logger.info(f"Assigned GPUs: {job.assigned_gpus}")
         if job.is_torchrun_job:
             self.logger.info(f"Using torchrun for distributed job {job.job_id}")
         
         # Execute job in screen session
         screen_cmd = [
             "screen", "-dmS", screen_name,
-            "bash", "-c", f"cd {Path.cwd()} && {script_path}"
+            "bash", "-c", f"cd {Path.cwd()} && exec {script_path}"
         ]
         
         process = subprocess.Popen(
@@ -474,6 +483,21 @@ class GPUManager:
         """Check if job can be allocated and return suitable GPUs"""
         with self.lock:
             return self._find_suitable_gpus(job)
+    
+    def try_allocate_atomic(self, job: Job) -> Tuple[bool, List[int]]:
+        """Atomically check and allocate GPUs for job"""
+        with self.lock:
+            can_allocate, gpu_ids = self._find_suitable_gpus(job)
+            
+            if not can_allocate:
+                return False, []
+            
+            # Allocate immediately within the same lock
+            allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
+            for gpu_id in gpu_ids:
+                self.allocations[gpu_id] += allocation
+            
+            return True, gpu_ids
     
     def _find_suitable_gpus(self, job: Job) -> Tuple[bool, List[int]]:
         """Find suitable GPUs for job (called within lock)"""
@@ -785,20 +809,18 @@ class GPUJobScheduler:
     
     def _try_allocate_and_run(self, job: Job) -> bool:
         """Try to allocate GPUs and run job atomically"""
-        # Critical section: check availability and allocate atomically
-        can_allocate, gpu_ids = self.gpu_manager.can_allocate(job)
+        # Critical section: check availability and allocate atomically in one step
+        allocated, gpu_ids = self.gpu_manager.try_allocate_atomic(job)
         
-        if not can_allocate:
+        if not allocated:
             return False
         
-        # Allocate GPUs
-        if not self.gpu_manager.allocate(job, gpu_ids):
-            return False
-        
-        # Update job tracking atomically with GPU allocation
+        # Update job tracking (GPU allocation already done atomically)
         job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
         with self.scheduler_lock:
             self.running_jobs[job.job_id] = job
+        
+        self.logger.info(f"Allocated GPUs {gpu_ids} to job {job.job_id[:8]}")
         
         # Save state and start execution outside critical sections
         self._save_state()
@@ -821,10 +843,16 @@ class GPUJobScheduler:
         
         try:
             process = self.command_executor.execute_job(job, env)
-            return_code = process.wait()
+            screen_name = get_screen_name(job.job_id)
             
-            success = return_code == 0
-            final_status = JobStatus.COMPLETED if success else JobStatus.FAILED
+            # Wait for screen startup to complete
+            startup_code = process.wait()
+            if startup_code != 0:
+                self.logger.error(f"Failed to start screen session for job {job.job_id}")
+                final_status = JobStatus.FAILED
+            else:
+                # Monitor the screen session until it completes
+                final_status = self._monitor_screen_session(screen_name, job)
             
         except Exception as e:
             self.logger.error(f"Job {job.job_id} execution failed: {e}")
@@ -833,6 +861,28 @@ class GPUJobScheduler:
         finally:
             # Cleanup
             self._cleanup_job(job, final_status)
+    
+    def _monitor_screen_session(self, screen_name: str, job: Job) -> JobStatus:
+        """Monitor screen session until completion"""
+        self.logger.info(f"Monitoring screen session {screen_name} for job {job.job_id[:8]}")
+        
+        while not self.stop_event.is_set():
+            try:
+                # Check if screen session still exists using shared utility
+                if not self._screen_exists(screen_name):
+                    # Screen session ended, job completed
+                    self.logger.info(f"Screen session {screen_name} completed for job {job.job_id[:8]}")
+                    return JobStatus.COMPLETED
+                
+                # Wait before checking again
+                time.sleep(5)
+                
+            except Exception as e:
+                self.logger.error(f"Error monitoring screen session {screen_name}: {e}")
+                return JobStatus.FAILED
+        
+        # Scheduler is stopping
+        return JobStatus.FAILED
     
     def _cleanup_job(self, job: Job, final_status: JobStatus):
         """Cleanup job after execution"""
@@ -949,8 +999,8 @@ class GPUJobScheduler:
             }
         }
     
-    def get_active_screens(self) -> List[Dict[str, str]]:
-        """Get list of active job screen sessions"""
+    def _get_screen_list(self) -> List[str]:
+        """Get list of all screen sessions"""
         try:
             result = subprocess.run(
                 ["screen", "-list"],
@@ -958,28 +1008,37 @@ class GPUJobScheduler:
                 text=True,
                 check=False
             )
-            
-            screens = []
-            for line in result.stdout.split('\n'):
-                line = line.strip()
-                if line.startswith('job_'):
-                    # Parse screen list format: "job_831de2bb	(Detached)"
-                    parts = line.split('\t')
-                    if len(parts) >= 2:
-                        screen_name = parts[0]
-                        status = parts[1].strip('()')
-                        job_id = screen_name.replace('job_', '')
-                        screens.append({
-                            "screen_name": screen_name,
-                            "job_id": job_id,
-                            "status": status
-                        })
-            
-            return screens
-            
+            return result.stdout.split('\n')
         except Exception as e:
             self.logger.error(f"Failed to get screen list: {e}")
             return []
+    
+    def _screen_exists(self, screen_name: str) -> bool:
+        """Check if screen session exists"""
+        screen_lines = self._get_screen_list()
+        return any(screen_name in line for line in screen_lines)
+    
+    def get_active_screens(self) -> List[Dict[str, str]]:
+        """Get list of active job screen sessions"""
+        screens = []
+        screen_lines = self._get_screen_list()
+        
+        for line in screen_lines:
+            line = line.strip()
+            if line.startswith('job_'):
+                # Parse screen list format: "job_831de2bb	(Detached)"
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    screen_name = parts[0]
+                    status = parts[1].strip('()')
+                    job_id = screen_name.replace('job_', '')
+                    screens.append({
+                        "screen_name": screen_name,
+                        "job_id": job_id,
+                        "status": status
+                    })
+        
+        return screens
 
 
 # =============================================================================
