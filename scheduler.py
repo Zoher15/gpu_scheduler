@@ -340,15 +340,23 @@ class CommandExecutor:
         return script_path
     
     def execute_job(self, job: Job, env: Dict[str, str]) -> subprocess.Popen:
-        """Execute job with proper environment"""
+        """Execute job in screen session with proper environment"""
         script_path = self.create_execution_script(job, env)
+        screen_name = f"job_{job.job_id[:8]}"
         
         self.logger.info(f"Executing job {job.job_id}: {job.script_path}")
+        self.logger.info(f"Screen session: {screen_name}")
         if job.is_torchrun_job:
             self.logger.info(f"Using torchrun for distributed job {job.job_id}")
         
+        # Execute job in screen session
+        screen_cmd = [
+            "screen", "-dmS", screen_name,
+            "bash", "-c", f"cd {Path.cwd()} && {script_path}"
+        ]
+        
         process = subprocess.Popen(
-            [str(script_path)],
+            screen_cmd,
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -940,6 +948,38 @@ class GPUJobScheduler:
                 "running": running_count
             }
         }
+    
+    def get_active_screens(self) -> List[Dict[str, str]]:
+        """Get list of active job screen sessions"""
+        try:
+            result = subprocess.run(
+                ["screen", "-list"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            
+            screens = []
+            for line in result.stdout.split('\n'):
+                line = line.strip()
+                if line.startswith('job_'):
+                    # Parse screen list format: "job_831de2bb	(Detached)"
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        screen_name = parts[0]
+                        status = parts[1].strip('()')
+                        job_id = screen_name.replace('job_', '')
+                        screens.append({
+                            "screen_name": screen_name,
+                            "job_id": job_id,
+                            "status": status
+                        })
+            
+            return screens
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get screen list: {e}")
+            return []
 
 
 # =============================================================================
@@ -959,6 +999,9 @@ def main():
     
     # Status command
     subparsers.add_parser('status', help='Show status')
+    
+    # Screens command
+    subparsers.add_parser('screens', help='Show active job screen sessions')
     
     # Parse arguments
     args = parser.parse_args()
@@ -991,6 +1034,19 @@ def main():
         print(f"\n=== Jobs ===")
         print(f"Queued: {status['jobs']['queued']}")
         print(f"Running: {status['jobs']['running']}")
+    
+    elif args.command == 'screens':
+        scheduler = GPUJobScheduler(config)
+        screens = scheduler.get_active_screens()
+        
+        print("\n=== Active Job Screen Sessions ===")
+        if screens:
+            for screen in screens:
+                print(f"Screen: {screen['screen_name']} | Job: {screen['job_id']} | Status: {screen['status']}")
+            print(f"\nTotal: {len(screens)} active job screens")
+            print("\nTo attach to a screen: screen -r <screen_name>")
+        else:
+            print("No active job screens found")
 
 
 if __name__ == "__main__":
