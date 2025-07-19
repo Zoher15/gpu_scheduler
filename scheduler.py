@@ -459,7 +459,7 @@ class GPUManager:
         self.allocations: List[float] = [0.0] * num_gpus
         self.paused_gpus: Set[int] = set()
     
-    def get_gpu_info(self, reconcile_state: bool = False) -> List[GPUInfo]:
+    def get_gpu_info(self, reconcile_state: bool = False, running_jobs: Dict[str, any] = None) -> List[GPUInfo]:
         """Get current GPU information and optionally reconcile state with live data"""
         gpu_utils = []
         freed_count = 0
@@ -470,24 +470,35 @@ class GPUManager:
             self.logger.error(f"Failed to get GPU utilization: {e}")
         
         with self.lock:
-            # Reconcile state if requested - only for very low utilization to avoid false positives
-            if reconcile_state and gpu_utils:
+            # Reconcile state if requested - FIXED: Check for tracked running jobs
+            if reconcile_state and gpu_utils and running_jobs is not None:
                 for i in range(self.num_gpus):
                     if (i not in self.paused_gpus and 
                         self.allocations[i] > 0 and 
                         i < len(gpu_utils)):
                         
-                        gpu = gpu_utils[i]
-                        # Only reset if GPU shows extremely low utilization for a while
-                        # This is conservative to avoid disrupting fractional allocations
-                        if gpu.memoryUtil < 0.05 and gpu.load < 0.05:
-                            self.logger.info(f"GPU {i} appears completely idle (mem: {gpu.memoryUtil:.1%}, "
-                                           f"load: {gpu.load:.1%}), resetting allocation from {self.allocations[i]:.2f}")
-                            self.allocations[i] = 0.0
-                            freed_count += 1
+                        # CRITICAL FIX: Check if any tracked jobs are using this GPU
+                        gpu_has_tracked_jobs = any(
+                            job.assigned_gpus and i in job.assigned_gpus 
+                            for job in running_jobs.values()
+                        )
+                        
+                        # Only reconcile if NO tracked jobs are using this GPU
+                        if not gpu_has_tracked_jobs:
+                            gpu = gpu_utils[i]
+                            # Only reset if GPU shows extremely low utilization AND no tracked jobs
+                            if gpu.memoryUtil < 0.05 and gpu.load < 0.05:
+                                self.logger.info(f"GPU {i} appears idle with no tracked jobs "
+                                               f"(mem: {gpu.memoryUtil:.1%}, load: {gpu.load:.1%}), "
+                                               f"resetting allocation from {self.allocations[i]:.2f}")
+                                self.allocations[i] = 0.0
+                                freed_count += 1
+                        else:
+                            # GPU has tracked jobs, don't reset even if temporarily idle
+                            self.logger.debug(f"GPU {i} has tracked jobs, skipping reconciliation despite low utilization")
                 
                 if freed_count > 0:
-                    self.logger.info(f"Reconciled {freed_count} completely idle GPUs")
+                    self.logger.info(f"Reconciled {freed_count} idle GPUs with no tracked jobs")
             
             return [
                 GPUInfo(
@@ -982,7 +993,10 @@ class GPUJobScheduler:
             if current_time - last_state_check >= self.config.state_check_interval:
                 try:
                     # Use enhanced get_gpu_info to reconcile and save state
-                    self.gpu_manager.get_gpu_info(reconcile_state=True)
+                    # Pass running jobs to prevent race conditions during reconciliation
+                    with self.scheduler_lock:
+                        current_running_jobs = dict(self.running_jobs)
+                    self.gpu_manager.get_gpu_info(reconcile_state=True, running_jobs=current_running_jobs)
                     self._save_state()
                     last_state_check = current_time
                 except Exception as e:
@@ -1023,7 +1037,7 @@ class GPUJobScheduler:
                     "memory": f"{gpu.memory_util:.1%}",
                     "load": f"{gpu.load_util:.1%}"
                 }
-                for gpu in self.gpu_manager.get_gpu_info()
+                for gpu in self.gpu_manager.get_gpu_info(reconcile_state=False)
             ],
             "jobs": {
                 "queued": self.job_queue.qsize(),
