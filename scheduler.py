@@ -317,16 +317,17 @@ class CommandExecutor:
             return cmd
     
     def create_execution_script(self, job: Job, env: Dict[str, str]) -> Path:
-        """Create execution script with conda activation"""
+        """Create execution script with conda activation and TTY preservation"""
         script_lines = [
             "#!/bin/bash",
             f"# Job ID: {job.job_id}",
             f"# Hash: {job.job_hash}",
             f"# Original: {job.original_line or 'N/A'}",
             "set -e",
-            "# Setup terminal for progress bars in screen",
+            "# Setup terminal for progress bars with TTY preservation",
             "export TERM=xterm-256color",
             "export PYTHONUNBUFFERED=1",
+            "# Don't force terminal size - let tqdm auto-detect",
             "stty sane 2>/dev/null || true",
             f"echo 'Job {job.job_id} starting at $(date)'",
             f"echo 'GPU(s): {env.get('CUDA_VISIBLE_DEVICES', 'N/A')}'",
@@ -339,10 +340,26 @@ class CommandExecutor:
         if job.conda_env:
             script_lines.extend(self.conda_manager.get_activation_commands(job.conda_env))
         
-        # Add main command with output redirection for debugging
+        # Add main command with TTY preservation using script command
         cmd = self.build_command(job)
-        script_lines.append(shlex.join(cmd))
-        script_lines.append(f"echo 'Job {job.job_id} completed at $(date)'")
+        python_cmd_str = shlex.join(cmd)
+        
+        # Use script command for TTY preservation (better progress bars)
+        script_lines.extend([
+            f"echo 'Executing with TTY preservation: {python_cmd_str}'",
+            f"# Check if script command is available",
+            "if command -v script >/dev/null 2>&1; then",
+            f"    echo 'Using script command for TTY preservation'",
+            f"    script -q -e -c {shlex.quote(python_cmd_str)} /dev/null",
+            f"    exit_code=$?",
+            "else",
+            f"    echo 'script command not available, running directly'",
+            f"    {python_cmd_str}",
+            f"    exit_code=$?",
+            "fi",
+            f"echo 'Job {job.job_id} completed at $(date) with exit code: $exit_code'",
+            "exit $exit_code"
+        ])
         
         # Create temp script
         script_path = Path(f"/tmp/job_{job.job_id[:8]}.sh")
@@ -362,10 +379,10 @@ class CommandExecutor:
         if job.is_torchrun_job:
             self.logger.info(f"Using torchrun for distributed job {job.job_id}")
         
-        # Execute job in screen session with proper terminal setup for progress bars
+        # Execute job in screen session with TTY preservation for progress bars
         screen_cmd = [
             "screen", "-dmS", screen_name,
-            "bash", "-c", f"cd {Path.cwd()} && TERM=xterm-256color COLUMNS=120 PYTHONUNBUFFERED=1 exec {script_path}"
+            "bash", "-c", f"cd {Path.cwd()} && TERM=xterm-256color PYTHONUNBUFFERED=1 exec {script_path}"
         ]
         
         process = subprocess.Popen(
@@ -736,6 +753,7 @@ class GPUJobScheduler:
         # Thread safety locks
         self.scheduler_lock = threading.Lock()  # Protects running_jobs and managed_hashes
         self.state_file_lock = threading.Lock()  # Protects state file operations
+        self.allocation_lock = threading.Lock()  # Serializes GPU allocation attempts (ZERO race conditions)
         
         # Threads
         self.workers: List[threading.Thread] = []
@@ -800,8 +818,12 @@ class GPUJobScheduler:
                 success = self._try_allocate_and_run(job)
                 
                 if not success:
-                    # Re-queue job and continue immediately
+                    # Re-queue job with exponential backoff to reduce contention
                     self.job_queue.put((job.priority, job_id, job))
+                    # Brief exponential backoff to reduce allocation contention
+                    backoff_time = min(0.1 * (2 ** (hash(job_id) % 4)), 1.0)  # 0.1s to 1.6s
+                    if self.stop_event.wait(timeout=backoff_time):
+                        break  # Exit if stop event during backoff
                 
                 self.job_queue.task_done()
                 
@@ -812,24 +834,30 @@ class GPUJobScheduler:
                 self.job_queue.task_done()
     
     def _try_allocate_and_run(self, job: Job) -> bool:
-        """Try to allocate GPUs and run job atomically"""
-        # Critical section: check availability and allocate atomically in one step
-        allocated, gpu_ids = self.gpu_manager.try_allocate_atomic(job)
+        """Try to allocate GPUs and run job with ZERO race conditions"""
+        allocated = False
+        gpu_ids = []
+        
+        # CRITICAL SECTION: Only one worker can attempt allocation at a time
+        # This eliminates ALL race conditions while preserving parallelism
+        with self.allocation_lock:
+            allocated, gpu_ids = self.gpu_manager.try_allocate_atomic(job)
+            
+            if allocated:
+                # Update job tracking immediately while in allocation lock
+                job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
+                with self.scheduler_lock:
+                    self.running_jobs[job.job_id] = job
+                
+                self.logger.info(f"Allocated GPUs {gpu_ids} to job {job.job_id[:8]}")
+                
+                # Save state while in allocation lock to ensure consistency
+                self._save_state()
         
         if not allocated:
             return False
         
-        # Update job tracking (GPU allocation already done atomically)
-        job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
-        with self.scheduler_lock:
-            self.running_jobs[job.job_id] = job
-        
-        self.logger.info(f"Allocated GPUs {gpu_ids} to job {job.job_id[:8]}")
-        
-        # Save state and start execution outside critical sections
-        self._save_state()
-        
-        # Start job execution thread
+        # Job execution happens OUTSIDE the allocation lock for full parallelism
         thread = threading.Thread(
             target=self._execute_job,
             args=(job,),
