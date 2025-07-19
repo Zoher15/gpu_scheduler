@@ -324,6 +324,10 @@ class CommandExecutor:
             f"# Hash: {job.job_hash}",
             f"# Original: {job.original_line or 'N/A'}",
             "set -e",
+            "# Setup terminal for progress bars in screen",
+            "export TERM=xterm-256color",
+            "export PYTHONUNBUFFERED=1",
+            "stty sane 2>/dev/null || true",
             f"echo 'Job {job.job_id} starting at $(date)'",
             f"echo 'GPU(s): {env.get('CUDA_VISIBLE_DEVICES', 'N/A')}'",
             f"echo 'Working directory: $(pwd)'",
@@ -358,10 +362,10 @@ class CommandExecutor:
         if job.is_torchrun_job:
             self.logger.info(f"Using torchrun for distributed job {job.job_id}")
         
-        # Execute job in screen session
+        # Execute job in screen session with proper terminal setup for progress bars
         screen_cmd = [
             "screen", "-dmS", screen_name,
-            "bash", "-c", f"cd {Path.cwd()} && exec {script_path}"
+            "bash", "-c", f"cd {Path.cwd()} && TERM=xterm-256color COLUMNS=120 PYTHONUNBUFFERED=1 exec {script_path}"
         ]
         
         process = subprocess.Popen(
@@ -1024,19 +1028,22 @@ class GPUJobScheduler:
         screen_lines = self._get_screen_list()
         
         for line in screen_lines:
-            line = line.strip()
-            if line.startswith('job_'):
-                # Parse screen list format: "job_831de2bb	(Detached)"
+            if 'job_' in line:
+                # Parse screen list format: "\t1077430.job_86b46b04\t(07/16/2025 06:18:03 PM)\t(Detached)"
                 parts = line.split('\t')
-                if len(parts) >= 2:
-                    screen_name = parts[0]
-                    status = parts[1].strip('()')
-                    job_id = screen_name.replace('job_', '')
-                    screens.append({
-                        "screen_name": screen_name,
-                        "job_id": job_id,
-                        "status": status
-                    })
+                if len(parts) >= 4:  # Should have ['', 'session.job_id', '(date)', '(status)']
+                    full_session = parts[1]  # "1077430.job_86b46b04" 
+                    status = parts[-1].strip('()')  # "Detached"
+                    
+                    # Extract just the job part: "job_86b46b04"
+                    if '.' in full_session and 'job_' in full_session:
+                        screen_name = full_session.split('.', 1)[1]  # "job_86b46b04"
+                        job_id = screen_name.replace('job_', '')  # "86b46b04"
+                        screens.append({
+                            "screen_name": screen_name,
+                            "job_id": job_id,
+                            "status": status
+                        })
         
         return screens
 
@@ -1061,6 +1068,14 @@ def main():
     
     # Screens command
     subparsers.add_parser('screens', help='Show active job screen sessions')
+    
+    # Pause command
+    pause_parser = subparsers.add_parser('pause', help='Pause GPU')
+    pause_parser.add_argument('gpu_id', type=int, help='GPU ID to pause')
+    
+    # Resume command
+    resume_parser = subparsers.add_parser('resume', help='Resume GPU')
+    resume_parser.add_argument('gpu_id', type=int, help='GPU ID to resume')
     
     # Parse arguments
     args = parser.parse_args()
@@ -1106,6 +1121,20 @@ def main():
             print("\nTo attach to a screen: screen -r <screen_name>")
         else:
             print("No active job screens found")
+    
+    elif args.command == 'pause':
+        scheduler = GPUJobScheduler(config)
+        if scheduler.gpu_manager.pause_gpu(args.gpu_id):
+            print(f"GPU {args.gpu_id} paused successfully")
+        else:
+            print(f"Failed to pause GPU {args.gpu_id} (invalid GPU ID)")
+    
+    elif args.command == 'resume':
+        scheduler = GPUJobScheduler(config)
+        if scheduler.gpu_manager.resume_gpu(args.gpu_id):
+            print(f"GPU {args.gpu_id} resumed successfully")
+        else:
+            print(f"Failed to resume GPU {args.gpu_id} (invalid GPU ID)")
 
 
 if __name__ == "__main__":
