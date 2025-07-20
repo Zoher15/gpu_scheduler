@@ -125,26 +125,9 @@ class Job:
         return None
     
     def _copy_with_changes(self, **changes) -> 'Job':
-        """Create copy with specified field changes"""
-        fields = {
-            'job_id': self.job_id,
-            'priority': self.priority,
-            'script_path': self.script_path,
-            'conda_env': self.conda_env,
-            'execution_type': self.execution_type,
-            'args': self.args,
-            'allowed_gpus': self.allowed_gpus,
-            'required_gpus': self.required_gpus,
-            'llm_name': self.llm_name,
-            'job_hash': self.job_hash,
-            'original_line': self.original_line,
-            'status': self.status,
-            'assigned_gpus': self.assigned_gpus,
-            'start_time': self.start_time,
-            'end_time': self.end_time
-        }
-        fields.update(changes)
-        return Job(**fields)
+        """Create copy with specified field changes using dataclasses.replace"""
+        from dataclasses import replace
+        return replace(self, **changes)
     
     def with_assigned_gpus(self, gpu_ids: List[int]) -> 'Job':
         """Return new job with assigned GPUs"""
@@ -202,29 +185,58 @@ def setup_logging(log_file: str = "gpu_scheduler.log") -> logging.Logger:
     return logging.getLogger("GPUJobScheduler")
 
 
+class StateManager:
+    """Handles all state persistence with automatic error handling"""
+    
+    def __init__(self, state_file: str, logger: logging.Logger):
+        self.state_file = Path(state_file)
+        self.logger = logger
+    
+    def load(self, default: Any = None) -> Any:
+        """Load state from file with error handling"""
+        try:
+            with open(self.state_file, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.warning(f"Failed to load {self.state_file}: {e}")
+            return default or {}
+    
+    def save(self, data: Any) -> bool:
+        """Save state to file atomically with error handling"""
+        try:
+            temp_file = self.state_file.with_suffix(f".tmp_{os.getpid()}")
+            with open(temp_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(temp_file, self.state_file)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to save {self.state_file}: {e}")
+            if temp_file.exists():
+                temp_file.unlink(missing_ok=True)
+            return False
+    
+    def safe_operation(self, operation_name: str, operation_func):
+        """Execute operation with automatic error logging"""
+        try:
+            return operation_func()
+        except Exception as e:
+            self.logger.error(f"{operation_name} error: {e}")
+            return None
+
+
+# Legacy functions for compatibility
 def safe_json_load(file_path: Path, default: Any = None) -> Any:
-    """Safely load JSON file with error handling"""
-    try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logging.getLogger("GPUJobScheduler").warning(f"Failed to load {file_path}: {e}")
-        return default
+    """Legacy function - use StateManager instead"""
+    logger = logging.getLogger("GPUJobScheduler")
+    manager = StateManager(str(file_path), logger)
+    return manager.load(default)
 
 
 def safe_json_save(file_path: Path, data: Any) -> bool:
-    """Safely save JSON file with atomic write"""
-    try:
-        temp_file = file_path.with_suffix(f".tmp_{os.getpid()}")
-        with open(temp_file, 'w') as f:
-            json.dump(data, f, indent=2)
-        os.replace(temp_file, file_path)
-        return True
-    except Exception as e:
-        logging.getLogger("GPUJobScheduler").error(f"Failed to save {file_path}: {e}")
-        if temp_file.exists():
-            temp_file.unlink(missing_ok=True)
-        return False
+    """Legacy function - use StateManager instead"""
+    logger = logging.getLogger("GPUJobScheduler")
+    manager = StateManager(str(file_path), logger)
+    return manager.save(data)
 
 
 def extract_arg_value(args: List[str], key: str) -> Optional[str]:
@@ -268,9 +280,65 @@ def run_command(cmd: List[str], capture_output: bool = True, check: bool = True,
         logging.getLogger("GPUJobScheduler").error(f"Command failed: {' '.join(cmd)}, Error: {e}")
         raise
 
+class ScreenManager:
+    """Handles all screen session operations"""
+    
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
+    
+    @staticmethod
+    def get_screen_name(job_id: str) -> str:
+        """Generate screen session name for job"""
+        return f"job_{job_id[:8]}"
+    
+    def get_screen_list(self) -> List[str]:
+        """Get list of all screen sessions with error handling"""
+        try:
+            result = subprocess.run(
+                ["screen", "-list"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            return result.stdout.split('\n')
+        except Exception as e:
+            self.logger.error(f"Failed to get screen list: {e}")
+            return []
+    
+    def screen_exists(self, screen_name: str) -> bool:
+        """Check if screen session exists"""
+        screen_lines = self.get_screen_list()
+        return any(screen_name in line for line in screen_lines)
+    
+    def get_active_job_screens(self) -> List[Dict[str, str]]:
+        """Get list of active job screen sessions"""
+        screens = []
+        screen_lines = self.get_screen_list()
+        
+        for line in screen_lines:
+            if 'job_' in line:
+                # Parse screen list format: "\t1077430.job_86b46b04\t(07/16/2025 06:18:03 PM)\t(Detached)"
+                parts = line.split('\t')
+                if len(parts) >= 4:  # Should have ['', 'session.job_id', '(date)', '(status)']
+                    full_session = parts[1]  # "1077430.job_86b46b04" 
+                    status = parts[-1].strip('()')  # "Detached"
+                    
+                    # Extract just the job part: "job_86b46b04"
+                    if '.' in full_session and 'job_' in full_session:
+                        screen_name = full_session.split('.', 1)[1]  # "job_86b46b04"
+                        job_id = screen_name.replace('job_', '')  # "86b46b04"
+                        screens.append({
+                            "screen_name": screen_name,
+                            "job_id": job_id,
+                            "status": status
+                        })
+        
+        return screens
+
+
 def get_screen_name(job_id: str) -> str:
-    """Generate screen session name for job - shared across all classes"""
-    return f"job_{job_id[:8]}"
+    """Legacy function - use ScreenManager.get_screen_name() instead"""
+    return ScreenManager.get_screen_name(job_id)
 
 
 # =============================================================================
@@ -280,8 +348,9 @@ def get_screen_name(job_id: str) -> str:
 class CommandExecutor:
     """Handles all command execution logic with maximum DRY"""
     
-    def __init__(self, conda_manager: 'CondaManager'):
+    def __init__(self, conda_manager: 'CondaManager', screen_manager: 'ScreenManager'):
         self.conda_manager = conda_manager
+        self.screen_manager = screen_manager
         self.logger = logging.getLogger("CommandExecutor")
     
     def _add_cuda_args_if_needed(self, cmd: List[str], job: Job) -> List[str]:
@@ -371,7 +440,7 @@ class CommandExecutor:
     def execute_job(self, job: Job, env: Dict[str, str]) -> subprocess.Popen:
         """Execute job in screen session with proper environment"""
         script_path = self.create_execution_script(job, env)
-        screen_name = get_screen_name(job.job_id)
+        screen_name = self.screen_manager.get_screen_name(job.job_id)
         
         self.logger.info(f"Executing job {job.job_id}: {job.script_path}")
         self.logger.info(f"Screen session: {screen_name}")
@@ -453,9 +522,8 @@ class GPUManager:
         self.num_gpus = num_gpus
         self.config = config
         self.logger = logging.getLogger("GPUManager")
-        self.lock = threading.Lock()
         
-        # State
+        # State (no locks needed for single worker)
         self.allocations: List[float] = [0.0] * num_gpus
         self.paused_gpus: Set[int] = set()
     
@@ -469,70 +537,53 @@ class GPUManager:
         except Exception as e:
             self.logger.error(f"Failed to get GPU utilization: {e}")
         
-        with self.lock:
-            # Reconcile state if requested - FIXED: Check for tracked running jobs
-            if reconcile_state and gpu_utils and running_jobs is not None:
-                for i in range(self.num_gpus):
-                    if (i not in self.paused_gpus and 
-                        self.allocations[i] > 0 and 
-                        i < len(gpu_utils)):
-                        
-                        # CRITICAL FIX: Check if any tracked jobs are using this GPU
-                        gpu_has_tracked_jobs = any(
-                            job.assigned_gpus and i in job.assigned_gpus 
-                            for job in running_jobs.values()
-                        )
-                        
-                        # Only reconcile if NO tracked jobs are using this GPU
-                        if not gpu_has_tracked_jobs:
-                            gpu = gpu_utils[i]
-                            # Only reset if GPU shows extremely low utilization AND no tracked jobs
-                            if gpu.memoryUtil < 0.05 and gpu.load < 0.05:
-                                self.logger.info(f"GPU {i} appears idle with no tracked jobs "
-                                               f"(mem: {gpu.memoryUtil:.1%}, load: {gpu.load:.1%}), "
-                                               f"resetting allocation from {self.allocations[i]:.2f}")
-                                self.allocations[i] = 0.0
-                                freed_count += 1
-                        else:
-                            # GPU has tracked jobs, don't reset even if temporarily idle
-                            self.logger.debug(f"GPU {i} has tracked jobs, skipping reconciliation despite low utilization")
-                
-                if freed_count > 0:
-                    self.logger.info(f"Reconciled {freed_count} idle GPUs with no tracked jobs")
+        # Reconcile state if requested - Check for tracked running jobs
+        if reconcile_state and gpu_utils and running_jobs is not None:
+            for i in range(self.num_gpus):
+                if (i not in self.paused_gpus and 
+                    self.allocations[i] > 0 and 
+                    i < len(gpu_utils)):
+                    
+                    # Check if any tracked jobs are using this GPU
+                    gpu_has_tracked_jobs = any(
+                        job.assigned_gpus and i in job.assigned_gpus 
+                        for job in running_jobs.values()
+                    )
+                    
+                    # Only reconcile if NO tracked jobs are using this GPU
+                    if not gpu_has_tracked_jobs:
+                        gpu = gpu_utils[i]
+                        # Only reset if GPU shows extremely low utilization AND no tracked jobs
+                        if gpu.memoryUtil < 0.05 and gpu.load < 0.05:
+                            self.logger.info(f"GPU {i} appears idle with no tracked jobs "
+                                           f"(mem: {gpu.memoryUtil:.1%}, load: {gpu.load:.1%}), "
+                                           f"resetting allocation from {self.allocations[i]:.2f}")
+                            self.allocations[i] = 0.0
+                            freed_count += 1
+                    else:
+                        # GPU has tracked jobs, don't reset even if temporarily idle
+                        self.logger.debug(f"GPU {i} has tracked jobs, skipping reconciliation despite low utilization")
             
-            return [
-                GPUInfo(
-                    gpu_id=i,
-                    allocation=self.allocations[i],
-                    is_paused=i in self.paused_gpus,
-                    memory_util=gpu_utils[i].memoryUtil if i < len(gpu_utils) else 0.0,
-                    load_util=gpu_utils[i].load if i < len(gpu_utils) else 0.0
-                )
-                for i in range(self.num_gpus)
-            ]
+            if freed_count > 0:
+                self.logger.info(f"Reconciled {freed_count} idle GPUs with no tracked jobs")
+        
+        return [
+            GPUInfo(
+                gpu_id=i,
+                allocation=self.allocations[i],
+                is_paused=i in self.paused_gpus,
+                memory_util=gpu_utils[i].memoryUtil if i < len(gpu_utils) else 0.0,
+                load_util=gpu_utils[i].load if i < len(gpu_utils) else 0.0
+            )
+            for i in range(self.num_gpus)
+        ]
     
     def can_allocate(self, job: Job) -> Tuple[bool, List[int]]:
         """Check if job can be allocated and return suitable GPUs"""
-        with self.lock:
-            return self._find_suitable_gpus(job)
-    
-    def try_allocate_atomic(self, job: Job) -> Tuple[bool, List[int]]:
-        """Atomically check and allocate GPUs for job"""
-        with self.lock:
-            can_allocate, gpu_ids = self._find_suitable_gpus(job)
-            
-            if not can_allocate:
-                return False, []
-            
-            # Allocate immediately within the same lock
-            allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
-            for gpu_id in gpu_ids:
-                self.allocations[gpu_id] += allocation
-            
-            return True, gpu_ids
+        return self._find_suitable_gpus(job)
     
     def _find_suitable_gpus(self, job: Job) -> Tuple[bool, List[int]]:
-        """Find suitable GPUs for job (called within lock)"""
+        """Find suitable GPUs for job"""
         candidates = [
             i for i in range(self.num_gpus)
             if i not in self.paused_gpus and 
@@ -582,19 +633,17 @@ class GPUManager:
     
     def allocate(self, job: Job, gpu_ids: List[int]) -> bool:
         """Allocate GPUs to job"""
-        with self.lock:
-            allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
-            for gpu_id in gpu_ids:
-                self.allocations[gpu_id] += allocation
-            return True
+        allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
+        for gpu_id in gpu_ids:
+            self.allocations[gpu_id] += allocation
+        return True
     
     def deallocate(self, job: Job, gpu_ids: List[int]) -> bool:
         """Deallocate GPUs from job"""
-        with self.lock:
-            allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
-            for gpu_id in gpu_ids:
-                self.allocations[gpu_id] = max(0.0, self.allocations[gpu_id] - allocation)
-            return True
+        allocation = job.required_gpus if job.required_gpus <= 1.0 else 1.0
+        for gpu_id in gpu_ids:
+            self.allocations[gpu_id] = max(0.0, self.allocations[gpu_id] - allocation)
+        return True
     
     def _validate_gpu_id(self, gpu_id: int) -> bool:
         """Validate GPU ID is within range"""
@@ -604,41 +653,37 @@ class GPUManager:
         """Pause GPU"""
         if not self._validate_gpu_id(gpu_id):
             return False
-        with self.lock:
-            self.paused_gpus.add(gpu_id)
+        self.paused_gpus.add(gpu_id)
         return True
     
     def resume_gpu(self, gpu_id: int) -> bool:
         """Resume GPU"""
         if not self._validate_gpu_id(gpu_id):
             return False
-        with self.lock:
-            self.paused_gpus.discard(gpu_id)
+        self.paused_gpus.discard(gpu_id)
         return True
     
     def get_state(self) -> Dict[str, Any]:
         """Get serializable state"""
-        with self.lock:
-            return {
-                "gpu_status": [round(a, 4) for a in self.allocations],
-                "paused_gpus": sorted(list(self.paused_gpus))
-            }
+        return {
+            "gpu_status": [round(a, 4) for a in self.allocations],
+            "paused_gpus": sorted(list(self.paused_gpus))
+        }
     
     def load_state(self, state: Dict[str, Any]) -> None:
         """Load state from dict"""
-        with self.lock:
-            if "gpu_status" in state:
-                status = state["gpu_status"]
-                if len(status) == self.num_gpus:
-                    self.allocations = [max(0.0, min(1.0, float(s))) for s in status]
-                else:
-                    self.logger.warning(f"GPU status length mismatch: {len(status)} vs {self.num_gpus}")
-            
-            if "paused_gpus" in state:
-                self.paused_gpus = set(
-                    gpu_id for gpu_id in state["paused_gpus"] 
-                    if 0 <= gpu_id < self.num_gpus
-                )
+        if "gpu_status" in state:
+            status = state["gpu_status"]
+            if len(status) == self.num_gpus:
+                self.allocations = [max(0.0, min(1.0, float(s))) for s in status]
+            else:
+                self.logger.warning(f"GPU status length mismatch: {len(status)} vs {self.num_gpus}")
+        
+        if "paused_gpus" in state:
+            self.paused_gpus = set(
+                gpu_id for gpu_id in state["paused_gpus"] 
+                if 0 <= gpu_id < self.num_gpus
+            )
 
 
 # =============================================================================
@@ -751,49 +796,40 @@ class GPUJobScheduler:
         
         # Components
         self.conda_manager = CondaManager()
-        self.command_executor = CommandExecutor(self.conda_manager)
         self.gpu_manager = GPUManager(num_gpus, config)
         self.job_parser = JobParser(config)
+        self.state_manager = StateManager(config.state_file, self.logger)
+        self.screen_manager = ScreenManager(self.logger)
+        self.command_executor = CommandExecutor(self.conda_manager, self.screen_manager)
         
-        # State
-        self.job_queue: queue.PriorityQueue = queue.PriorityQueue()
+        # State (simplified for single worker)
+        self.job_queue: List[Job] = []  # Simple list, sorted by priority
         self.running_jobs: Dict[str, Job] = {}
         self.managed_hashes: Set[str] = set()
-        self.stop_event = threading.Event()
-        
-        # Thread safety locks
-        self.scheduler_lock = threading.Lock()  # Protects running_jobs and managed_hashes
-        self.state_file_lock = threading.Lock()  # Protects state file operations
-        self.allocation_lock = threading.Lock()  # Serializes GPU allocation attempts (ZERO race conditions)
-        
-        # Threads
-        self.workers: List[threading.Thread] = []
-        self.monitor_thread: Optional[threading.Thread] = None
+        self.stop_requested = False  # Simple boolean flag
         
         # Load state
         self._load_state()
     
     def _load_state(self):
-        """Load scheduler state"""
-        state = safe_json_load(Path(self.config.state_file), {})
+        """Load scheduler state using StateManager"""
+        state = self.state_manager.load({})
         self.gpu_manager.load_state(state)
     
     def _save_state(self):
-        """Save scheduler state with thread safety"""
-        with self.state_file_lock:
-            state = self.gpu_manager.get_state()
-            safe_json_save(Path(self.config.state_file), state)
+        """Save scheduler state using StateManager"""
+        state = self.gpu_manager.get_state()
+        self.state_manager.save(state)
     
     def add_job(self, job: Job) -> bool:
-        """Add job to queue with thread safety"""
-        with self.scheduler_lock:
-            if job.job_hash in self.managed_hashes:
-                return False
-            
-            self.managed_hashes.add(job.job_hash)
+        """Add job to queue"""
+        if job.job_hash in self.managed_hashes:
+            return False
         
-        # Queue operations are thread-safe, do outside lock
-        self.job_queue.put((job.priority, job.job_id, job))
+        self.managed_hashes.add(job.job_hash)
+        self.job_queue.append(job)
+        # Keep queue sorted by priority (lower number = higher priority)
+        self.job_queue.sort(key=lambda j: j.priority)
         
         self.logger.info(f"Added job {job.job_id}: {Path(job.script_path).name} "
                         f"(Priority: {job.priority}, GPUs: {job.required_gpus})")
@@ -814,61 +850,23 @@ class GPUJobScheduler:
         self.logger.info(f"Loaded {added} jobs from {file_path}")
         return added
     
-    def worker(self):
-        """Worker thread main loop"""
-        while not self.stop_event.is_set():
-            try:
-                # Get job from queue
-                _, job_id, job = self.job_queue.get(timeout=1.0)
-                
-                if self.stop_event.is_set():
-                    self.job_queue.put((job.priority, job_id, job))
-                    break
-                
-                # Try to allocate GPUs
-                success = self._try_allocate_and_run(job)
-                
-                if not success:
-                    # Re-queue job with exponential backoff to reduce contention
-                    self.job_queue.put((job.priority, job_id, job))
-                    # Brief exponential backoff to reduce allocation contention
-                    backoff_time = min(0.1 * (2 ** (hash(job_id) % 4)), 1.0)  # 0.1s to 1.6s
-                    if self.stop_event.wait(timeout=backoff_time):
-                        break  # Exit if stop event during backoff
-                
-                self.job_queue.task_done()
-                
-            except queue.Empty:
-                continue
-            except Exception as e:
-                self.logger.error(f"Worker error: {e}")
-                self.job_queue.task_done()
-    
     def _try_allocate_and_run(self, job: Job) -> bool:
-        """Try to allocate GPUs and run job with ZERO race conditions"""
-        allocated = False
-        gpu_ids = []
+        """Try to allocate GPUs and run job (simplified for single worker)"""
+        # Check if job can be allocated
+        can_allocate, gpu_ids = self.gpu_manager.can_allocate(job)
         
-        # CRITICAL SECTION: Only one worker can attempt allocation at a time
-        # This eliminates ALL race conditions while preserving parallelism
-        with self.allocation_lock:
-            allocated, gpu_ids = self.gpu_manager.try_allocate_atomic(job)
-            
-            if allocated:
-                # Update job tracking immediately while in allocation lock
-                job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
-                with self.scheduler_lock:
-                    self.running_jobs[job.job_id] = job
-                
-                self.logger.info(f"Allocated GPUs {gpu_ids} to job {job.job_id[:8]}")
-                
-                # Save state while in allocation lock to ensure consistency
-                self._save_state()
-        
-        if not allocated:
+        if not can_allocate:
             return False
         
-        # Job execution happens OUTSIDE the allocation lock for full parallelism
+        # Allocate GPUs and update job tracking
+        self.gpu_manager.allocate(job, gpu_ids)
+        job = job.with_assigned_gpus(gpu_ids).with_status(JobStatus.RUNNING)
+        self.running_jobs[job.job_id] = job
+        
+        self.logger.info(f"Allocated GPUs {gpu_ids} to job {job.job_id[:8]}")
+        self._save_state()
+        
+        # Execute job in parallel (still runs in separate screen session)
         thread = threading.Thread(
             target=self._execute_job,
             args=(job,),
@@ -886,7 +884,7 @@ class GPUJobScheduler:
         
         try:
             process = self.command_executor.execute_job(job, env)
-            screen_name = get_screen_name(job.job_id)
+            screen_name = self.screen_manager.get_screen_name(job.job_id)
             
             # Wait for screen startup to complete
             startup_code = process.wait()
@@ -909,10 +907,10 @@ class GPUJobScheduler:
         """Monitor screen session until completion"""
         self.logger.info(f"Monitoring screen session {screen_name} for job {job.job_id[:8]}")
         
-        while not self.stop_event.is_set():
+        while not self.stop_requested:
             try:
-                # Check if screen session still exists using shared utility
-                if not self._screen_exists(screen_name):
+                # Check if screen session still exists using ScreenManager
+                if not self.screen_manager.screen_exists(screen_name):
                     # Screen session ended, job completed
                     self.logger.info(f"Screen session {screen_name} completed for job {job.job_id[:8]}")
                     return JobStatus.COMPLETED
@@ -928,106 +926,93 @@ class GPUJobScheduler:
         return JobStatus.FAILED
     
     def _cleanup_job(self, job: Job, final_status: JobStatus):
-        """Cleanup job after execution"""
+        """Cleanup job after execution (simplified for single worker)"""
         # Update job status
         job = job.with_status(final_status)
         
-        # Deallocate GPUs
+        # Deallocate GPUs and update tracking
         self.gpu_manager.deallocate(job, job.assigned_gpus)
+        self.running_jobs.pop(job.job_id, None)
         
-        # Remove from tracking collections atomically
-        with self.scheduler_lock:
-            self.running_jobs.pop(job.job_id, None)
-            # Remove from managed hashes if failed (allow retry)
-            if final_status == JobStatus.FAILED:
-                self.managed_hashes.discard(job.job_hash)
+        # Remove from managed hashes if failed (allow retry)
+        if final_status == JobStatus.FAILED:
+            self.managed_hashes.discard(job.job_hash)
         
         # Save state
         self._save_state()
         
-        self.logger.info(f"Job {job.job_id} finished: {final_status.value}")
+        self.logger.info(f"Job {job.job_id} finished: {final_status.value}, GPUs {job.assigned_gpus} freed")
     
-    def start(self):
-        """Start scheduler"""
+    def run(self):
+        """Run scheduler main loop (simplified single worker)"""
         self.logger.info(f"Starting scheduler with {self.num_gpus} GPUs")
         
         # Load initial jobs
         if Path(self.config.jobs_file).exists():
             self.load_jobs_from_file(self.config.jobs_file)
         
-        # Start workers
-        for i in range(self.num_gpus):
-            worker = threading.Thread(
-                target=self.worker,
-                name=f"Worker-{i}",
-                daemon=True
-            )
-            worker.start()
-            self.workers.append(worker)
+        last_check = time.time()
         
-        # Start file monitor
-        self.monitor_thread = threading.Thread(
-            target=self._monitor_files,
-            name="FileMonitor",
-            daemon=True
-        )
-        self.monitor_thread.start()
-    
-    def _monitor_files(self):
-        """Monitor job files for changes and reconcile GPU state"""
-        last_file_check = time.time()
-        last_state_check = time.time()
-        
-        while not self.stop_event.is_set():
+        # Main scheduler loop
+        while not self.stop_requested:
             current_time = time.time()
             
-            # Check for new jobs periodically
-            if current_time - last_file_check >= self.config.file_monitor_interval:
-                try:
-                    self.load_jobs_from_file(self.config.jobs_file)
-                    last_file_check = current_time
-                except Exception as e:
-                    self.logger.error(f"File monitor error: {e}")
+            # Run periodic tasks every 20 seconds
+            if current_time - last_check >= self.config.state_check_interval:
+                self._run_periodic_tasks()
+                last_check = current_time
             
-            # Reconcile GPU state periodically
-            if current_time - last_state_check >= self.config.state_check_interval:
-                try:
-                    # Use enhanced get_gpu_info to reconcile and save state
-                    # Pass running jobs to prevent race conditions during reconciliation
-                    with self.scheduler_lock:
-                        current_running_jobs = dict(self.running_jobs)
-                    self.gpu_manager.get_gpu_info(reconcile_state=True, running_jobs=current_running_jobs)
-                    self._save_state()
-                    last_state_check = current_time
-                except Exception as e:
-                    self.logger.error(f"State reconciliation error: {e}")
+            # Process pending jobs
+            self._process_job_queue()
             
-            time.sleep(1)
+            # Brief sleep to prevent busy waiting
+            time.sleep(0.1)
+        
+        self.logger.info("Scheduler stopped")
+    
+    def _run_periodic_tasks(self):
+        """Run all periodic maintenance tasks with unified error handling"""
+        # 1. Reload state from file (respects manual pause/resume)
+        self.state_manager.safe_operation("State reload", self._load_state)
+        
+        # 2. Load new jobs from file
+        self.state_manager.safe_operation(
+            "Job loading", 
+            lambda: self.load_jobs_from_file(self.config.jobs_file)
+        )
+        
+        # 3. Reconcile GPU state with live utilization
+        def reconcile_gpu_state():
+            current_running_jobs = dict(self.running_jobs)
+            self.gpu_manager.get_gpu_info(reconcile_state=True, running_jobs=current_running_jobs)
+        
+        self.state_manager.safe_operation("GPU reconciliation", reconcile_gpu_state)
+        
+        # 4. Save state to file
+        self.state_manager.safe_operation("State save", self._save_state)
+    
+    def _process_job_queue(self):
+        """Process pending jobs in queue"""
+        if not self.job_queue:
+            return
+        
+        # Try to run jobs starting from highest priority
+        for i, job in enumerate(self.job_queue):
+            if self._try_allocate_and_run(job):
+                # Job started successfully, remove from queue
+                self.job_queue.pop(i)
+                break  # Only start one job per iteration to maintain fairness
     
     def stop(self):
         """Stop scheduler"""
         self.logger.info("Stopping scheduler")
-        self.stop_event.set()
-        
-        # Stop workers
-        for worker in self.workers:
-            worker.join(timeout=10)
-        
-        # Stop monitor
-        if self.monitor_thread:
-            self.monitor_thread.join(timeout=5)
+        self.stop_requested = True
         
         # Save final state
         self._save_state()
-        
-        self.logger.info("Scheduler stopped")
     
     def get_status(self) -> Dict[str, Any]:
-        """Get scheduler status with thread safety"""
-        # Get running job count safely
-        with self.scheduler_lock:
-            running_count = len(self.running_jobs)
-        
+        """Get scheduler status (simplified for single worker)"""
         return {
             "gpus": [
                 {
@@ -1040,54 +1025,14 @@ class GPUJobScheduler:
                 for gpu in self.gpu_manager.get_gpu_info(reconcile_state=False)
             ],
             "jobs": {
-                "queued": self.job_queue.qsize(),
-                "running": running_count
+                "queued": len(self.job_queue),
+                "running": len(self.running_jobs)
             }
         }
     
-    def _get_screen_list(self) -> List[str]:
-        """Get list of all screen sessions"""
-        try:
-            result = subprocess.run(
-                ["screen", "-list"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            return result.stdout.split('\n')
-        except Exception as e:
-            self.logger.error(f"Failed to get screen list: {e}")
-            return []
-    
-    def _screen_exists(self, screen_name: str) -> bool:
-        """Check if screen session exists"""
-        screen_lines = self._get_screen_list()
-        return any(screen_name in line for line in screen_lines)
-    
     def get_active_screens(self) -> List[Dict[str, str]]:
-        """Get list of active job screen sessions"""
-        screens = []
-        screen_lines = self._get_screen_list()
-        
-        for line in screen_lines:
-            if 'job_' in line:
-                # Parse screen list format: "\t1077430.job_86b46b04\t(07/16/2025 06:18:03 PM)\t(Detached)"
-                parts = line.split('\t')
-                if len(parts) >= 4:  # Should have ['', 'session.job_id', '(date)', '(status)']
-                    full_session = parts[1]  # "1077430.job_86b46b04" 
-                    status = parts[-1].strip('()')  # "Detached"
-                    
-                    # Extract just the job part: "job_86b46b04"
-                    if '.' in full_session and 'job_' in full_session:
-                        screen_name = full_session.split('.', 1)[1]  # "job_86b46b04"
-                        job_id = screen_name.replace('job_', '')  # "86b46b04"
-                        screens.append({
-                            "screen_name": screen_name,
-                            "job_id": job_id,
-                            "status": status
-                        })
-        
-        return screens
+        """Get list of active job screen sessions using ScreenManager"""
+        return self.screen_manager.get_active_job_screens()
 
 
 # =============================================================================
@@ -1130,11 +1075,9 @@ def main():
     # Execute command
     if args.command == 'start':
         scheduler = GPUJobScheduler(config, args.gpus)
-        scheduler.start()
         
         try:
-            while True:
-                time.sleep(60)
+            scheduler.run()  # Use new simplified main loop
         except KeyboardInterrupt:
             scheduler.stop()
     
@@ -1167,6 +1110,7 @@ def main():
     elif args.command == 'pause':
         scheduler = GPUJobScheduler(config)
         if scheduler.gpu_manager.pause_gpu(args.gpu_id):
+            scheduler._save_state()
             print(f"GPU {args.gpu_id} paused successfully")
         else:
             print(f"Failed to pause GPU {args.gpu_id} (invalid GPU ID)")
@@ -1174,6 +1118,7 @@ def main():
     elif args.command == 'resume':
         scheduler = GPUJobScheduler(config)
         if scheduler.gpu_manager.resume_gpu(args.gpu_id):
+            scheduler._save_state()
             print(f"GPU {args.gpu_id} resumed successfully")
         else:
             print(f"Failed to resume GPU {args.gpu_id} (invalid GPU ID)")
